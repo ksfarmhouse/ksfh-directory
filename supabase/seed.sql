@@ -1,0 +1,2 @@
+-- No bulk seed data. Brothers create their own profiles after signing in;
+-- admins can also add stub profiles via the admin page if needed.

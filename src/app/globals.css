@@ -1,26 +1,48 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  /* FarmHouse Fraternity brand palette
+     Source: FarmHouse Style Guide v1.01, August 2016
+     Preferred usage ratio: 40% white, 40% green, 20% gold (with gray accents) */
+  --color-fh-green: #006938;
+  --color-fh-green-700: #00532d;
+  --color-fh-green-600: #007a40;
+  --color-fh-green-500: #008045;
+  --color-fh-green-50: #e6f1eb;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-fh-gold: #ffce00;
+  --color-fh-gold-700: #d4ab00;
+
+  --color-fh-gray: #54575a;
+  --color-fh-gray-light: #8a8d90;
+  --color-fh-gray-50: #f5f5f6;
+
+  /* Body / surface tokens */
+  --color-background: #f4f7f4;
+  --color-foreground: #54575a;
+  --color-foreground-strong: #1a1a1a;
+
+  /* Per the style guide, Helvetica/Arial for web. System stack falls through gracefully. */
+  --font-sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-background: #0c1410;
+    --color-foreground: #d6d8d6;
+    --color-foreground-strong: #ffffff;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-foreground-strong);
 }

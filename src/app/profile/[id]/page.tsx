@@ -1,0 +1,151 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { Avatar } from "@/components/Avatar";
+import { avatarUrl } from "@/lib/avatar";
+import { formatPhone } from "@/lib/format";
+import { formatLocation } from "@/lib/states";
+import { createClient } from "@/lib/supabase/server";
+
+type Params = Promise<{ id: string }>;
+
+const RELATIONSHIP_LABEL: Record<string, string> = {
+  single: "Single",
+  dating: "Dating",
+  engaged: "Engaged",
+  married: "Married",
+  unknown: "—",
+};
+
+export default async function ProfilePage({ params }: { params: Params }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !profile) notFound();
+
+  const isOwner = !!user?.id && profile.user_id === user.id;
+
+  let isAdmin = false;
+  if (user) {
+    const { data: me } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    isAdmin = me?.is_admin ?? false;
+  }
+
+  if (profile.hidden && !isOwner && !isAdmin) notFound();
+
+  const canEdit = isOwner || isAdmin;
+  const avatar = avatarUrl(supabase, profile.avatar_path);
+
+  const phoneNode = profile.phone ? (
+    <a
+      href={`tel:${profile.phone.replace(/\D/g, "")}`}
+      className="hover:underline"
+    >
+      {formatPhone(profile.phone)}
+    </a>
+  ) : null;
+
+  const emailNode = profile.personal_email ? (
+    <a
+      href={`mailto:${profile.personal_email}`}
+      className="hover:underline break-all"
+    >
+      {profile.personal_email}
+    </a>
+  ) : null;
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-8">
+      <Link
+        href="/directory"
+        className="text-sm text-fh-gray-light hover:text-fh-green transition"
+      >
+        ← Back to directory
+      </Link>
+
+      <div className="bg-fh-green-500 border border-fh-green-700 rounded-lg mt-4 overflow-hidden shadow-sm">
+        <div className="px-4 sm:px-6 py-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <Avatar url={avatar} name={profile.full_name} size={64} />
+              <div className="min-w-0">
+                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight truncate">
+                  {profile.full_name}
+                </h1>
+                <p className="text-xs text-fh-gold tracking-[0.18em] uppercase font-bold mt-1">
+                  {profile.pledge_class}
+                </p>
+              </div>
+            </div>
+            {canEdit && (
+              <Link
+                href={`/profile/${profile.id}/edit`}
+                className="text-sm px-4 py-1.5 rounded-md bg-fh-gold text-fh-green-700 font-semibold hover:bg-fh-gold-700 transition shrink-0"
+              >
+                Edit
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="h-px bg-fh-gold" />
+
+        <dl className="grid grid-cols-1 sm:grid-cols-3 gap-y-4 gap-x-4 text-sm p-4 sm:p-6">
+          <Field label="Phone" value={phoneNode} />
+          <Field label="Email" value={emailNode} />
+          <Field label="Home address" value={profile.home_address} />
+          <Field label="Position" value={profile.position} />
+          <Field label="Company" value={profile.company} />
+          <Field
+            label="Location"
+            value={formatLocation(profile.city, profile.state)}
+          />
+          <Field
+            label="Relationship"
+            value={
+              profile.relationship_status
+                ? RELATIONSHIP_LABEL[profile.relationship_status] ??
+                  profile.relationship_status
+                : null
+            }
+          />
+          <Field label="Partner" value={profile.partner_name} />
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  const isEmpty =
+    value === null || value === undefined || value === false || value === "";
+  return (
+    <div className="sm:col-span-1">
+      <dt className="text-[10px] uppercase tracking-[0.15em] text-fh-gold font-semibold">
+        {label}
+      </dt>
+      <dd className="mt-1 text-white font-medium wrap-break-word">
+        {isEmpty ? <span className="text-white/40">—</span> : value}
+      </dd>
+    </div>
+  );
+}
