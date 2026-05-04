@@ -3,12 +3,10 @@
 @theme {
   /* FarmHouse Fraternity brand palette
      Source: FarmHouse Style Guide v1.01, August 2016
-     Preferred usage ratio: 40% white, 40% green, 20% gold (with gray accents) */
+     Preferred usage ratio: 40% white, 40% green, 20% gold (with gray accents).
+     Use the brand-spec --color-fh-green for all greens; opacity (e.g. /85) for
+     hover states. Do not introduce green-500/600/700 variants. */
   --color-fh-green: #006938;
-  --color-fh-green-700: #00532d;
-  --color-fh-green-600: #007a40;
-  --color-fh-green-500: #008045;
-  --color-fh-green-50: #e6f1eb;
 
   --color-fh-gold: #ffce00;
   --color-fh-gold-700: #d4ab00;

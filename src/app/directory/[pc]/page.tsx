@@ -41,7 +41,7 @@ export default async function PledgeClassPage({
   let query = supabase
     .from("profiles")
     .select(
-      "id, full_name, pledge_class, position, phone, city, state, avatar_path",
+      "id, full_name, pledge_class, employment_status, position, university, phone, city, state, avatar_path",
     )
     .eq("hidden", false)
     .eq("pledge_class", pc);
@@ -115,7 +115,7 @@ export default async function PledgeClassPage({
           <li key={p.id}>
             <Link
               href={`/profile/${p.id}`}
-              className="flex items-start gap-3 bg-fh-green-500 border border-fh-green-700 rounded-lg p-4 hover:bg-fh-green-600 hover:shadow-md transition group"
+              className="flex items-start gap-3 bg-fh-green rounded-lg p-4 hover:bg-fh-green/85 hover:shadow-md transition group"
             >
               <Avatar
                 url={avatarUrl(supabase, p.avatar_path)}
@@ -126,11 +126,13 @@ export default async function PledgeClassPage({
                 <h2 className="font-bold text-white truncate">
                   {p.full_name}
                 </h2>
-                {p.position && (
-                  <p className="text-sm text-white/90 truncate">
-                    {p.position}
-                  </p>
-                )}
+                {(() => {
+                  const line =
+                    p.employment_status === "postgrad" ? p.university : p.position;
+                  return line ? (
+                    <p className="text-sm text-white/90 truncate">{line}</p>
+                  ) : null;
+                })()}
                 {(() => {
                   const loc = formatLocation(p.city, p.state);
                   return loc ? (

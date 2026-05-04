@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { EmploymentFields } from "@/components/EmploymentFields";
 import { US_STATES } from "@/lib/states";
 import { createClient } from "@/lib/supabase/server";
 
@@ -40,7 +41,7 @@ export default async function NewProfilePage() {
 
       {classes.length === 0 ? (
         <div className="bg-fh-gold/15 border-l-4 border-fh-gold rounded-r-md p-4">
-          <p className="text-sm text-fh-green-700">
+          <p className="text-sm text-fh-green">
             No pledge classes have been added yet. Ask the alumni chair to add
             yours before creating a profile.
           </p>
@@ -58,7 +59,7 @@ export default async function NewProfilePage() {
               type="file"
               name="avatar"
               accept="image/*"
-              className="block w-full text-sm text-fh-gray file:mr-3 file:rounded-md file:border-0 file:bg-fh-green file:px-3 file:py-1.5 file:text-white file:font-semibold hover:file:bg-fh-green-500 file:cursor-pointer"
+              className="block w-full text-sm text-fh-gray file:mr-3 file:rounded-md file:border-0 file:bg-fh-green file:px-3 file:py-1.5 file:text-white file:font-semibold hover:file:bg-fh-green/85 file:cursor-pointer"
             />
             <p className="text-xs text-fh-gray-light mt-1">PNG, JPG, or WebP up to 5 MB.</p>
           </div>
@@ -85,8 +86,16 @@ export default async function NewProfilePage() {
                 ))}
               </select>
             </div>
-            <Field label="Company" name="company" />
-            <Field label="Position" name="position" />
+            <EmploymentFields
+              theme="light"
+              defaults={{
+                employment_status: null,
+                position: null,
+                company: null,
+                university: null,
+                grad_year: null,
+              }}
+            />
             <Field label="City" name="city" />
             <div>
               <label className="block text-[10px] uppercase tracking-[0.15em] text-fh-gray-light font-semibold mb-1">
@@ -135,7 +144,7 @@ export default async function NewProfilePage() {
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              className="h-10 px-5 rounded-md bg-fh-green text-white font-semibold hover:bg-fh-green-500 transition"
+              className="h-10 px-5 rounded-md bg-fh-green text-white font-semibold hover:bg-fh-green/85 transition"
             >
               Create profile
             </button>

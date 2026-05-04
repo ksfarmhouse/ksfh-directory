@@ -5,13 +5,18 @@ export type RelationshipStatus =
   | "married"
   | "unknown";
 
+export type EmploymentStatus = "employed" | "postgrad";
+
 export type Profile = {
   id: string;
   user_id: string | null;
   pledge_class: string;
   full_name: string;
+  employment_status: EmploymentStatus | null;
   company: string | null;
   position: string | null;
+  university: string | null;
+  grad_year: number | null;
   city: string | null;
   state: string | null;
   home_address: string | null;
@@ -32,8 +37,11 @@ export type ProfileInsert = {
   user_id?: string | null;
   pledge_class: string;
   full_name: string;
+  employment_status?: EmploymentStatus | null;
   company?: string | null;
   position?: string | null;
+  university?: string | null;
+  grad_year?: number | null;
   city?: string | null;
   state?: string | null;
   home_address?: string | null;

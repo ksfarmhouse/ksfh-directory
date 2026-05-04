@@ -76,7 +76,7 @@ export default async function ProfilePage({ params }: { params: Params }) {
         ← Back to directory
       </Link>
 
-      <div className="bg-fh-green-500 border border-fh-green-700 rounded-lg mt-4 overflow-hidden shadow-sm">
+      <div className="bg-fh-green rounded-lg mt-4 overflow-hidden shadow-sm">
         <div className="px-4 sm:px-6 py-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0">
@@ -93,7 +93,7 @@ export default async function ProfilePage({ params }: { params: Params }) {
             {canEdit && (
               <Link
                 href={`/profile/${profile.id}/edit`}
-                className="text-sm px-4 py-1.5 rounded-md bg-fh-gold text-fh-green-700 font-semibold hover:bg-fh-gold-700 transition shrink-0"
+                className="text-sm px-4 py-1.5 rounded-md bg-fh-gold text-fh-green font-semibold hover:bg-fh-gold-700 transition shrink-0"
               >
                 Edit
               </Link>
@@ -107,8 +107,20 @@ export default async function ProfilePage({ params }: { params: Params }) {
           <Field label="Phone" value={phoneNode} />
           <Field label="Email" value={emailNode} />
           <Field label="Home address" value={profile.home_address} />
-          <Field label="Position" value={profile.position} />
-          <Field label="Company" value={profile.company} />
+          {profile.employment_status === "postgrad" ? (
+            <>
+              <Field label="University" value={profile.university} />
+              <Field
+                label="Expected grad year"
+                value={profile.grad_year ? String(profile.grad_year) : null}
+              />
+            </>
+          ) : (
+            <>
+              <Field label="Position" value={profile.position} />
+              <Field label="Company" value={profile.company} />
+            </>
+          )}
           <Field
             label="Location"
             value={formatLocation(profile.city, profile.state)}

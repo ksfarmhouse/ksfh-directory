@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { Avatar } from "@/components/Avatar";
+import { EmploymentFields } from "@/components/EmploymentFields";
 import { avatarUrl } from "@/lib/avatar";
 import { US_STATES } from "@/lib/states";
 import { createClient } from "@/lib/supabase/server";
@@ -56,7 +57,7 @@ export default async function EditProfilePage({ params }: { params: Params }) {
 
       <form
         action={updateProfile}
-        className="bg-fh-green-500 border border-fh-green-700 rounded-lg p-6 space-y-4 shadow-sm"
+        className="bg-fh-green rounded-lg p-6 space-y-4 shadow-sm"
       >
         <input type="hidden" name="id" value={profile.id} />
 
@@ -68,7 +69,7 @@ export default async function EditProfilePage({ params }: { params: Params }) {
               type="file"
               name="avatar"
               accept="image/*"
-              className="block w-full text-sm text-white file:mr-3 file:rounded-md file:border-0 file:bg-fh-gold file:px-3 file:py-1.5 file:text-fh-green-700 file:font-semibold hover:file:bg-fh-gold-700 file:cursor-pointer"
+              className="block w-full text-sm text-white file:mr-3 file:rounded-md file:border-0 file:bg-fh-gold file:px-3 file:py-1.5 file:text-fh-green file:font-semibold hover:file:bg-fh-gold-700 file:cursor-pointer"
             />
             <p className="text-xs text-white/70 mt-1">PNG, JPG, or WebP up to 5 MB.</p>
           </div>
@@ -112,8 +113,16 @@ export default async function EditProfilePage({ params }: { params: Params }) {
               </>
             )}
           </div>
-          <Field label="Company" name="company" defaultValue={profile.company} />
-          <Field label="Position" name="position" defaultValue={profile.position} />
+          <EmploymentFields
+            theme="dark"
+            defaults={{
+              employment_status: profile.employment_status,
+              position: profile.position,
+              company: profile.company,
+              university: profile.university,
+              grad_year: profile.grad_year,
+            }}
+          />
           <Field label="City" name="city" defaultValue={profile.city} />
           <div>
             <FieldLabel>State</FieldLabel>
@@ -166,7 +175,7 @@ export default async function EditProfilePage({ params }: { params: Params }) {
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            className="h-10 px-5 rounded-md bg-fh-gold text-fh-green-700 font-semibold hover:bg-fh-gold-700 transition"
+            className="h-10 px-5 rounded-md bg-fh-gold text-fh-green font-semibold hover:bg-fh-gold-700 transition"
           >
             Save
           </button>

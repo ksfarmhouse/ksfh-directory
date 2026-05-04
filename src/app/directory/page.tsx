@@ -79,7 +79,7 @@ async function PledgeClassGrid() {
               <li key={pc.name}>
                 <Link
                   href={`/directory/${encodeURIComponent(pc.name)}`}
-                  className="flex items-center justify-between gap-4 bg-fh-green-500 border border-fh-green-700 rounded-lg px-5 py-5 hover:bg-fh-green-600 hover:shadow-md transition group"
+                  className="flex items-center justify-between gap-4 bg-fh-green rounded-lg px-5 py-5 hover:bg-fh-green/85 hover:shadow-md transition group"
                 >
                   <div>
                     <h2 className="text-2xl font-bold text-white tracking-tight">
@@ -112,11 +112,11 @@ async function SearchResults({ query }: { query: string }) {
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, pledge_class, position, phone, city, state, avatar_path",
+      "id, full_name, pledge_class, employment_status, position, university, phone, city, state, avatar_path",
     )
     .eq("hidden", false)
     .or(
-      `full_name.ilike.${term},company.ilike.${term},city.ilike.${term},state.ilike.${term},position.ilike.${term}`,
+      `full_name.ilike.${term},company.ilike.${term},city.ilike.${term},state.ilike.${term},position.ilike.${term},university.ilike.${term}`,
     )
     .order("pledge_class", { ascending: false })
     .order("full_name", { ascending: true });
@@ -160,7 +160,7 @@ async function SearchResults({ query }: { query: string }) {
           <li key={p.id}>
             <Link
               href={`/profile/${p.id}`}
-              className="flex items-start gap-3 bg-fh-green-500 border border-fh-green-700 rounded-lg p-4 hover:bg-fh-green-600 hover:shadow-md transition group"
+              className="flex items-start gap-3 bg-fh-green rounded-lg p-4 hover:bg-fh-green/85 hover:shadow-md transition group"
             >
               <Avatar
                 url={avatarUrl(supabase, p.avatar_path)}
@@ -174,11 +174,13 @@ async function SearchResults({ query }: { query: string }) {
                     {p.pledge_class}
                   </span>
                 </div>
-                {p.position && (
-                  <p className="text-sm text-white/90 truncate">
-                    {p.position}
-                  </p>
-                )}
+                {(() => {
+                  const line =
+                    p.employment_status === "postgrad" ? p.university : p.position;
+                  return line ? (
+                    <p className="text-sm text-white/90 truncate">{line}</p>
+                  ) : null;
+                })()}
                 {(() => {
                   const loc = formatLocation(p.city, p.state);
                   return loc ? (

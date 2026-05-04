@@ -31,7 +31,7 @@ export function Avatar({ url, name, size = 64, className }: AvatarProps) {
         borderRadius: "9999px",
         overflow: "hidden",
         backgroundColor: "#ffce00",
-        color: "#00532d",
+        color: "#006938",
         fontWeight: 700,
         fontSize: Math.round(size / 2.5),
         flexShrink: 0,

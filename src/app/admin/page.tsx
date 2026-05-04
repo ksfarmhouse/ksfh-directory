@@ -45,59 +45,59 @@ export default async function AdminPage() {
       </header>
 
       <section>
-        <h2 className="text-xl font-semibold text-fh-green-700 mb-1">
+        <h2 className="text-xl font-semibold text-fh-green mb-1">
           Pledge classes
         </h2>
         <p className="text-sm text-fh-gray mb-4">
           Manage the list brothers can pick from when creating a profile.
         </p>
 
-        <ul className="space-y-2 mb-4">
-          {(pledgeClasses ?? []).map((pc) => (
-            <li
-              key={pc.name}
-              className="flex items-center justify-between bg-white border border-fh-gray/15 rounded-md px-4 py-2"
-            >
-              <span className="font-semibold text-fh-green-700">{pc.name}</span>
-              <form action={deletePledgeClass}>
-                <input type="hidden" name="name" value={pc.name} />
-                <button
-                  type="submit"
-                  className="text-sm text-red-600 hover:underline"
-                >
-                  Delete
-                </button>
-              </form>
-            </li>
-          ))}
-          {(pledgeClasses?.length ?? 0) === 0 && (
-            <li className="text-sm text-fh-gray-light">
-              No pledge classes yet.
-            </li>
-          )}
-        </ul>
+        <div className="bg-fh-green rounded-lg p-4 sm:p-6 shadow-sm">
+          <ul className="space-y-2 mb-4">
+            {(pledgeClasses ?? []).map((pc) => (
+              <li
+                key={pc.name}
+                className="flex items-center justify-between bg-white/10 border border-white/15 rounded-md px-4 py-2"
+              >
+                <span className="font-semibold text-white">{pc.name}</span>
+                <form action={deletePledgeClass}>
+                  <input type="hidden" name="name" value={pc.name} />
+                  <button
+                    type="submit"
+                    className="text-sm text-fh-gold hover:underline"
+                  >
+                    Delete
+                  </button>
+                </form>
+              </li>
+            ))}
+            {(pledgeClasses?.length ?? 0) === 0 && (
+              <li className="text-sm text-white/70">No pledge classes yet.</li>
+            )}
+          </ul>
 
-        <form
-          action={createPledgeClass}
-          className="flex flex-col sm:flex-row gap-2"
-        >
-          <input
-            name="name"
-            required
-            placeholder="e.g. PC '23"
-            className="flex-1 h-10 px-3 rounded-md border border-fh-gray/25 bg-white focus:border-fh-green focus:outline-none"
-          />
-          <button
-            type="submit"
-            className="h-10 px-5 rounded-md bg-fh-green text-white font-semibold hover:bg-fh-green-500 transition"
+          <form
+            action={createPledgeClass}
+            className="flex flex-col sm:flex-row gap-2"
           >
-            Add pledge class
-          </button>
-        </form>
+            <input
+              name="name"
+              required
+              placeholder="e.g. PC '23"
+              className="flex-1 h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green placeholder:text-fh-green/60 focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
+            />
+            <button
+              type="submit"
+              className="h-10 px-5 rounded-md bg-fh-gold text-fh-green font-semibold hover:bg-fh-gold-700 transition"
+            >
+              Add pledge class
+            </button>
+          </form>
+        </div>
       </section>
 
       <section>
-        <h2 className="text-xl font-semibold text-fh-green-700 mb-1">
+        <h2 className="text-xl font-semibold text-fh-green mb-1">
           Add a stub profile
         </h2>
         <p className="text-sm text-fh-gray mb-4">
@@ -106,17 +106,15 @@ export default async function AdminPage() {
         </p>
         <form
           action={createProfile}
-          className="bg-white border border-fh-gray/15 rounded-lg p-6 grid sm:grid-cols-2 gap-4"
+          className="bg-fh-green rounded-lg p-6 grid sm:grid-cols-2 gap-4 shadow-sm"
         >
           <Field label="Full name" name="full_name" required />
           <div>
-            <label className="block text-[10px] uppercase tracking-[0.15em] text-fh-gray-light font-semibold mb-1">
-              Pledge class
-            </label>
+            <FieldLabel>Pledge class</FieldLabel>
             <select
               name="pledge_class"
               required
-              className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white focus:border-fh-green focus:outline-none"
+              className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green font-medium focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
             >
               <option value="">Select a class…</option>
               {pledgeClassNames.map((name) => (
@@ -130,13 +128,11 @@ export default async function AdminPage() {
           <Field label="Position" name="position" />
           <Field label="City" name="city" />
           <div>
-            <label className="block text-[10px] uppercase tracking-[0.15em] text-fh-gray-light font-semibold mb-1">
-              State
-            </label>
+            <FieldLabel>State</FieldLabel>
             <select
               name="state"
               defaultValue=""
-              className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white focus:border-fh-green focus:outline-none"
+              className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green font-medium focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
             >
               <option value="">—</option>
               {US_STATES.map((s) => (
@@ -152,7 +148,7 @@ export default async function AdminPage() {
           <div className="sm:col-span-2">
             <button
               type="submit"
-              className="h-10 px-5 rounded-md bg-fh-green text-white font-semibold hover:bg-fh-green-500 transition"
+              className="h-10 px-5 rounded-md bg-fh-gold text-fh-green font-semibold hover:bg-fh-gold-700 transition"
             >
               Create stub profile
             </button>
@@ -160,6 +156,14 @@ export default async function AdminPage() {
         </form>
       </section>
     </div>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block text-[10px] uppercase tracking-[0.15em] text-fh-gold font-semibold mb-1">
+      {children}
+    </label>
   );
 }
 
@@ -178,15 +182,13 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-[10px] uppercase tracking-[0.15em] text-fh-gray-light font-semibold mb-1">
-        {label}
-      </label>
+      <FieldLabel>{label}</FieldLabel>
       <input
         type={type}
         name={name}
         required={required}
         placeholder={placeholder}
-        className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-green/20"
+        className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green placeholder:text-fh-green/60 focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
       />
     </div>
   );

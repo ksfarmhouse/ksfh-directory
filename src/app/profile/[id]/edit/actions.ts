@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 
 import { isValidStateCode } from "@/lib/states";
 import { createClient } from "@/lib/supabase/server";
-import type { ProfileUpdate, RelationshipStatus } from "@/lib/types";
+import type {
+  EmploymentStatus,
+  ProfileUpdate,
+  RelationshipStatus,
+} from "@/lib/types";
 
 const RELATIONSHIP_VALUES: RelationshipStatus[] = [
   "single",
@@ -56,11 +60,26 @@ export async function updateProfile(formData: FormData) {
   const stateRaw = nullable(formData.get("state"));
   const state = stateRaw && isValidStateCode(stateRaw) ? stateRaw : null;
 
+  const employmentRaw = nullable(formData.get("employment_status"));
+  const employmentStatus: EmploymentStatus =
+    employmentRaw === "postgrad" ? "postgrad" : "employed";
+
+  const isEmployed = employmentStatus === "employed";
+  const gradYearRaw = nullable(formData.get("grad_year"));
+  const gradYearParsed = gradYearRaw ? parseInt(gradYearRaw, 10) : NaN;
+  const gradYear =
+    !isEmployed && Number.isFinite(gradYearParsed)
+      ? gradYearParsed
+      : null;
+
   const update: ProfileUpdate = {
     full_name: fullName,
     pledge_class: pledgeClass,
-    company: nullable(formData.get("company")),
-    position: nullable(formData.get("position")),
+    employment_status: employmentStatus,
+    company: isEmployed ? nullable(formData.get("company")) : null,
+    position: isEmployed ? nullable(formData.get("position")) : null,
+    university: !isEmployed ? nullable(formData.get("university")) : null,
+    grad_year: gradYear,
     city: nullable(formData.get("city")),
     state,
     phone: nullable(formData.get("phone")),
