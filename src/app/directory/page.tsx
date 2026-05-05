@@ -133,7 +133,7 @@ async function SearchResults({ query }: { query: string }) {
       <h1 className="text-2xl sm:text-3xl font-bold text-fh-green tracking-tight mt-3">
         Search results
       </h1>
-      <p className="text-sm text-fh-gray mt-1">
+      <p className="text-sm text-fh-gray-light mt-1">
         {profiles?.length ?? 0}{" "}
         {profiles?.length === 1 ? "match" : "matches"} for{" "}
         <span className="font-semibold text-fh-green">&ldquo;{query}&rdquo;</span>

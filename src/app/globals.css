@@ -15,21 +15,14 @@
   --color-fh-gray-light: #8a8d90;
   --color-fh-gray-50: #f5f5f6;
 
-  /* Body / surface tokens */
-  --color-background: #f4f7f4;
-  --color-foreground: #54575a;
-  --color-foreground-strong: #1a1a1a;
+  /* Body / surface tokens. Dark theme is the only theme — the brand pops
+     against a dark green-tinted background. */
+  --color-background: #0c1410;
+  --color-foreground: #d6d8d6;
+  --color-foreground-strong: #ffffff;
 
   /* Per the style guide, Helvetica/Arial for web. System stack falls through gracefully. */
   --font-sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: #0c1410;
-    --color-foreground: #d6d8d6;
-    --color-foreground-strong: #ffffff;
-  }
 }
 
 body {

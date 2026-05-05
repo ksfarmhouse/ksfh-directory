@@ -34,14 +34,14 @@ export default async function NewProfilePage() {
         Create your profile
       </h1>
       <div className="h-1 w-12 bg-fh-gold mt-2 mb-4" />
-      <p className="text-fh-gray mb-6">
+      <p className="text-fh-gray-light mb-6">
         Signed in as {user.email}. Fill in your info — you can update it
         anytime.
       </p>
 
       {classes.length === 0 ? (
         <div className="bg-fh-gold/15 border-l-4 border-fh-gold rounded-r-md p-4">
-          <p className="text-sm text-fh-green">
+          <p className="text-sm text-fh-gold">
             No pledge classes have been added yet. Ask the alumni chair to add
             yours before creating a profile.
           </p>
@@ -49,32 +49,30 @@ export default async function NewProfilePage() {
       ) : (
         <form
           action={createOwnProfile}
-          className="bg-white border border-fh-gray/15 rounded-lg p-6 space-y-4"
+          className="bg-fh-green rounded-lg p-6 space-y-4 shadow-sm"
         >
-          <div className="pb-4 border-b border-fh-gray/15">
-            <label className="block text-[10px] uppercase tracking-[0.15em] text-fh-gray-light font-semibold mb-1">
-              Profile picture (optional)
-            </label>
+          <div className="pb-4 border-b border-white/15">
+            <FieldLabel>Profile picture (optional)</FieldLabel>
             <input
               type="file"
               name="avatar"
               accept="image/*"
-              className="block w-full text-sm text-fh-gray file:mr-3 file:rounded-md file:border-0 file:bg-fh-green file:px-3 file:py-1.5 file:text-white file:font-semibold hover:file:bg-fh-green/85 file:cursor-pointer"
+              className="block w-full text-sm text-white file:mr-3 file:rounded-md file:border-0 file:bg-fh-gold file:px-3 file:py-1.5 file:text-fh-green file:font-semibold hover:file:bg-fh-gold-700 file:cursor-pointer"
             />
-            <p className="text-xs text-fh-gray-light mt-1">PNG, JPG, or WebP up to 5 MB.</p>
+            <p className="text-xs text-white/70 mt-1">
+              PNG, JPG, or WebP up to 5 MB.
+            </p>
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Full name" name="full_name" required />
             <div>
-              <label className="block text-[10px] uppercase tracking-[0.15em] text-fh-gray-light font-semibold mb-1">
-                Pledge class
-              </label>
+              <FieldLabel>Pledge class</FieldLabel>
               <select
                 name="pledge_class"
                 required
                 defaultValue=""
-                className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white focus:border-fh-green focus:outline-none"
+                className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green font-medium focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
               >
                 <option value="" disabled>
                   Select your class…
@@ -87,7 +85,7 @@ export default async function NewProfilePage() {
               </select>
             </div>
             <EmploymentFields
-              theme="light"
+              theme="dark"
               defaults={{
                 employment_status: null,
                 position: null,
@@ -98,13 +96,11 @@ export default async function NewProfilePage() {
             />
             <Field label="City" name="city" />
             <div>
-              <label className="block text-[10px] uppercase tracking-[0.15em] text-fh-gray-light font-semibold mb-1">
-                State
-              </label>
+              <FieldLabel>State</FieldLabel>
               <select
                 name="state"
                 defaultValue=""
-                className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white focus:border-fh-green focus:outline-none"
+                className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green font-medium focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
               >
                 <option value="">—</option>
                 {US_STATES.map((s) => (
@@ -123,13 +119,11 @@ export default async function NewProfilePage() {
             />
             <Field label="Home address" name="home_address" />
             <div>
-              <label className="block text-[10px] uppercase tracking-[0.15em] text-fh-gray-light font-semibold mb-1">
-                Relationship status
-              </label>
+              <FieldLabel>Relationship status</FieldLabel>
               <select
                 name="relationship_status"
                 defaultValue=""
-                className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white focus:border-fh-green focus:outline-none"
+                className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green font-medium focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
               >
                 <option value="">—</option>
                 <option value="single">Single</option>
@@ -144,13 +138,13 @@ export default async function NewProfilePage() {
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              className="h-10 px-5 rounded-md bg-fh-green text-white font-semibold hover:bg-fh-green/85 transition"
+              className="h-10 px-5 rounded-md bg-fh-gold text-fh-green font-semibold hover:bg-fh-gold-700 transition"
             >
               Create profile
             </button>
             <a
               href="/directory"
-              className="h-10 px-5 leading-10 rounded-md border border-fh-gray/25 text-fh-gray hover:bg-fh-gray/5 transition"
+              className="h-10 px-5 leading-10 rounded-md border border-white/40 text-white hover:bg-white/10 transition"
             >
               Cancel
             </a>
@@ -158,6 +152,14 @@ export default async function NewProfilePage() {
         </form>
       )}
     </div>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block text-[10px] uppercase tracking-[0.15em] text-fh-gold font-semibold mb-1">
+      {children}
+    </label>
   );
 }
 
@@ -176,15 +178,13 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-[10px] uppercase tracking-[0.15em] text-fh-gray-light font-semibold mb-1">
-        {label}
-      </label>
+      <FieldLabel>{label}</FieldLabel>
       <input
         type={type}
         name={name}
         required={required}
         defaultValue={defaultValue}
-        className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-green/20"
+        className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green placeholder:text-fh-green/60 focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
       />
     </div>
   );

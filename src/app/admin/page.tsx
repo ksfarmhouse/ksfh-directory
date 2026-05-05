@@ -48,7 +48,7 @@ export default async function AdminPage() {
         <h2 className="text-xl font-semibold text-fh-green mb-1">
           Pledge classes
         </h2>
-        <p className="text-sm text-fh-gray mb-4">
+        <p className="text-sm text-fh-gray-light mb-4">
           Manage the list brothers can pick from when creating a profile.
         </p>
 
@@ -100,7 +100,7 @@ export default async function AdminPage() {
         <h2 className="text-xl font-semibold text-fh-green mb-1">
           Add a stub profile
         </h2>
-        <p className="text-sm text-fh-gray mb-4">
+        <p className="text-sm text-fh-gray-light mb-4">
           For brothers who aren&apos;t signing up themselves yet — they&apos;ll
           show up in the directory immediately.
         </p>

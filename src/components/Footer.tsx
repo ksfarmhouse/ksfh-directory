@@ -1,8 +1,8 @@
 export function Footer() {
   return (
-    <footer className="border-t border-fh-gray/15 bg-white dark:bg-fh-green mt-16">
-      <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-fh-gray dark:text-fh-gray-50">
-        <p className="font-medium tracking-wide uppercase text-fh-green dark:text-fh-gold">
+    <footer className="border-t border-fh-gray/15 bg-fh-green mt-16">
+      <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-fh-gray-50">
+        <p className="font-medium tracking-wide uppercase text-fh-gold">
           Builder of Men
         </p>
         <p>

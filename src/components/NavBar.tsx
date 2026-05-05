@@ -30,7 +30,7 @@ export async function NavBar() {
               <span className="block font-bold tracking-wide text-base uppercase truncate">
                 FarmHouse
               </span>
-              <span className="hidden sm:block text-[10px] tracking-[0.18em] text-fh-gold uppercase">
+              <span className="block text-[10px] tracking-[0.18em] text-fh-gold uppercase">
                 Kansas State Directory
               </span>
             </div>
