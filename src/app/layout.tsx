@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   title: "Kansas State FarmHouse Alumni",
   description:
     "Private alumni directory for the Kansas State Chapter of FarmHouse Fraternity.",
+  icons: {
+    icon: "/fh-shield.png",
+    shortcut: "/fh-shield.png",
+    apple: "/fh-shield.png",
+  },
 };
 
 export default function RootLayout({
