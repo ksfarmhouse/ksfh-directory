@@ -27,6 +27,7 @@ export type Profile = {
   is_admin: boolean;
   hidden: boolean;
   avatar_path: string | null;
+  birthday: string | null;
   claimed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -52,6 +53,7 @@ export type ProfileInsert = {
   is_admin?: boolean;
   hidden?: boolean;
   avatar_path?: string | null;
+  birthday?: string | null;
   claimed_at?: string | null;
   created_at?: string;
   updated_at?: string;

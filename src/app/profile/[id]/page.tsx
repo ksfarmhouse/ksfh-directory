@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { Avatar } from "@/components/Avatar";
 import { avatarUrl } from "@/lib/avatar";
-import { formatPhone } from "@/lib/format";
+import { formatBirthday, formatPhone } from "@/lib/format";
 import { formatLocation } from "@/lib/states";
 import { createClient } from "@/lib/supabase/server";
 
@@ -125,6 +125,7 @@ export default async function ProfilePage({ params }: { params: Params }) {
             label="Location"
             value={formatLocation(profile.city, profile.state)}
           />
+          <Field label="Birthday" value={formatBirthday(profile.birthday)} />
           <Field
             label="Relationship"
             value={

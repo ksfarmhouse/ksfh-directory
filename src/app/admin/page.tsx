@@ -147,6 +147,7 @@ export default async function AdminPage() {
           <Field label="Phone" name="phone" />
           <Field label="Personal email" name="personal_email" type="email" />
           <Field label="Home address" name="home_address" />
+          <Field label="Birthday" name="birthday" type="date" />
           <div className="sm:col-span-2">
             <button
               type="submit"

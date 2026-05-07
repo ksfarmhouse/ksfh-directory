@@ -60,6 +60,12 @@ export async function updateProfile(formData: FormData) {
   const stateRaw = nullable(formData.get("state"));
   const state = stateRaw && isValidStateCode(stateRaw) ? stateRaw : null;
 
+  const birthdayRaw = nullable(formData.get("birthday"));
+  const birthday =
+    birthdayRaw && /^\d{4}-\d{2}-\d{2}$/.test(birthdayRaw)
+      ? birthdayRaw
+      : null;
+
   const employmentRaw = nullable(formData.get("employment_status"));
   const employmentStatus: EmploymentStatus =
     employmentRaw === "postgrad" ? "postgrad" : "employed";
@@ -85,6 +91,7 @@ export async function updateProfile(formData: FormData) {
     phone: nullable(formData.get("phone")),
     personal_email: nullable(formData.get("personal_email")),
     home_address: nullable(formData.get("home_address")),
+    birthday,
     relationship_status: relationship,
     partner_name: nullable(formData.get("partner_name")),
   };

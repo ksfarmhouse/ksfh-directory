@@ -43,6 +43,12 @@ export async function createProfile(formData: FormData) {
   const stateRaw = nullable(formData.get("state"));
   const state = stateRaw && isValidStateCode(stateRaw) ? stateRaw : null;
 
+  const birthdayRaw = nullable(formData.get("birthday"));
+  const birthday =
+    birthdayRaw && /^\d{4}-\d{2}-\d{2}$/.test(birthdayRaw)
+      ? birthdayRaw
+      : null;
+
   const supabase = await createClient();
   const { error } = await supabase.from("profiles").insert({
     full_name: fullName,
@@ -54,6 +60,7 @@ export async function createProfile(formData: FormData) {
     phone: nullable(formData.get("phone")),
     personal_email: nullable(formData.get("personal_email")),
     home_address: nullable(formData.get("home_address")),
+    birthday,
   });
 
   if (error) throw new Error(error.message);

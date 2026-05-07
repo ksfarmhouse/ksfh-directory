@@ -120,6 +120,14 @@ export default async function NewProfilePage() {
             />
             <Field label="Home address" name="home_address" />
             <div>
+              <FieldLabel>Birthday</FieldLabel>
+              <input
+                type="date"
+                name="birthday"
+                className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green font-medium focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
+              />
+            </div>
+            <div>
               <FieldLabel>Relationship status</FieldLabel>
               <select
                 name="relationship_status"
