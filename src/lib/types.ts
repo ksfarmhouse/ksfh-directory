@@ -62,12 +62,14 @@ export type ProfileUpdate = Partial<ProfileInsert>;
 export type PledgeClass = {
   name: string;
   display_order: number;
+  hidden: boolean;
   created_at: string;
 };
 
 export type PledgeClassInsert = {
   name: string;
   display_order?: number;
+  hidden?: boolean;
   created_at?: string;
 };
 

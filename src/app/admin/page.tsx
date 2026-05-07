@@ -26,11 +26,13 @@ export default async function AdminPage() {
 
   const { data: pledgeClasses } = await supabase
     .from("pledge_classes")
-    .select("name, display_order")
+    .select("name, display_order, hidden")
     .order("display_order", { ascending: true })
     .order("name", { ascending: false });
 
-  const pledgeClassNames = (pledgeClasses ?? []).map((p) => p.name);
+  const pledgeClassNames = (pledgeClasses ?? [])
+    .filter((p) => !p.hidden)
+    .map((p) => p.name);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-12">

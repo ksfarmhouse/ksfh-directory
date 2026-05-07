@@ -27,6 +27,7 @@ async function PledgeClassGrid() {
     supabase
       .from("pledge_classes")
       .select("name, display_order")
+      .eq("hidden", false)
       .order("display_order", { ascending: true })
       .order("name", { ascending: false }),
     supabase

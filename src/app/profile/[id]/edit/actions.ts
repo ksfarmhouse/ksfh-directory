@@ -106,7 +106,14 @@ export async function updateProfile(formData: FormData) {
         contentType: avatar.type,
         upsert: false,
       });
-    if (uploadError) throw new Error(`Avatar upload failed: ${uploadError.message}`);
+    if (uploadError) {
+      console.error("[updateProfile] avatar upload failed", {
+        userId: user.id,
+        path,
+        uploadError,
+      });
+      throw new Error(`Avatar upload failed: ${uploadError.message}`);
+    }
     update.avatar_path = path;
   }
 
@@ -118,7 +125,17 @@ export async function updateProfile(formData: FormData) {
     .update(update)
     .eq("id", id)
     .select("id");
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("[updateProfile] update failed", {
+      userId: user.id,
+      profileId: id,
+      pgCode: error.code,
+      pgMessage: error.message,
+      pgDetails: error.details,
+      pgHint: error.hint,
+    });
+    throw new Error(error.message);
+  }
   if (!updated || updated.length === 0) {
     throw new Error("Not authorized to edit this profile");
   }

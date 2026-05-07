@@ -68,6 +68,11 @@ export async function createOwnProfile(formData: FormData) {
         upsert: false,
       });
     if (uploadError) {
+      console.error("[createOwnProfile] avatar upload failed", {
+        userId: user.id,
+        path,
+        uploadError,
+      });
       throw new Error(`Avatar upload failed: ${uploadError.message}`);
     }
     avatarPath = path;
@@ -110,7 +115,16 @@ export async function createOwnProfile(formData: FormData) {
     .select("id")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("[createOwnProfile] insert failed", {
+      userId: user.id,
+      pgCode: error.code,
+      pgMessage: error.message,
+      pgDetails: error.details,
+      pgHint: error.hint,
+    });
+    throw new Error(error.message);
+  }
 
   revalidatePath("/directory");
   redirect(`/profile/${data.id}`);
