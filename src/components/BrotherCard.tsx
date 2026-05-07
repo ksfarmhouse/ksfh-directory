@@ -71,22 +71,28 @@ function CardLines({
   emphasis: CardEmphasis;
 }) {
   if (emphasis === "default") {
-    const role =
-      profile.employment_status === "postgrad"
-        ? profile.university
-        : profile.position;
+    const isPostgrad = profile.employment_status === "postgrad";
+    const role = isPostgrad ? profile.university : profile.position;
     const loc = formatLocation(profile.city, profile.state);
     return (
       <>
-        {role && <p className="text-sm text-white/90 truncate">{role}</p>}
-        {loc && (
-          <p className="text-sm text-white/75 mt-0.5 truncate">{loc}</p>
-        )}
-        {profile.phone && (
-          <p className="text-sm text-white/75 mt-0.5 truncate">
-            {formatPhone(profile.phone)}
-          </p>
-        )}
+        <p className="text-sm text-white/90 truncate">
+          {role || (
+            <Empty>
+              {isPostgrad ? "No school listed" : "No job listed"}
+            </Empty>
+          )}
+        </p>
+        <p className="text-sm text-white/75 mt-0.5 truncate">
+          {loc || <Empty>No location listed</Empty>}
+        </p>
+        <p className="text-sm text-white/75 mt-0.5 truncate">
+          {profile.phone ? (
+            formatPhone(profile.phone)
+          ) : (
+            <Empty>No phone listed</Empty>
+          )}
+        </p>
       </>
     );
   }
@@ -95,19 +101,39 @@ function CardLines({
 
   if (emphasis === "city" || emphasis === "state") {
     const loc = formatLocation(profile.city, profile.state);
-    return <p className={big}>{loc ?? "—"}</p>;
-  }
-
-  if (emphasis === "birthday") {
-    return (
-      <p className={big}>{formatBirthdayShort(profile.birthday) ?? "—"}</p>
+    return loc ? (
+      <p className={big}>{loc}</p>
+    ) : (
+      <p className="text-sm truncate">
+        <Empty>No location listed</Empty>
+      </p>
     );
   }
 
-  // next-birthday
+  if (emphasis === "birthday") {
+    const short = formatBirthdayShort(profile.birthday);
+    return short ? (
+      <p className={big}>{short}</p>
+    ) : (
+      <p className="text-sm truncate">
+        <Empty>No birthday listed</Empty>
+      </p>
+    );
+  }
+
+  // next-birthday — keep two lines either way for consistent card height.
   const short = formatBirthdayShort(profile.birthday);
   const days = daysUntilBirthday(profile.birthday);
-  if (!short || days === null) return <p className={big}>—</p>;
+  if (!short || days === null) {
+    return (
+      <>
+        <p className={big}>—</p>
+        <p className="text-sm truncate">
+          <Empty>No birthday listed</Empty>
+        </p>
+      </>
+    );
+  }
   return (
     <>
       <p className={big}>{short}</p>
@@ -116,4 +142,8 @@ function CardLines({
       </p>
     </>
   );
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return <span className="text-white/40 italic">{children}</span>;
 }
