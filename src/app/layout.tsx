@@ -5,9 +5,9 @@ import { Footer } from "@/components/Footer";
 import { NavBar } from "@/components/NavBar";
 
 export const metadata: Metadata = {
-  title: "Kansas State FarmHouse Alumni",
+  title: "Kansas State FarmHouse Directory",
   description:
-    "Private alumni directory for the Kansas State Chapter of FarmHouse Fraternity.",
+    "Private member and alumni directory for the Kansas State Chapter of FarmHouse Fraternity.",
   icons: {
     icon: "/fh-shield.png",
     shortcut: "/fh-shield.png",

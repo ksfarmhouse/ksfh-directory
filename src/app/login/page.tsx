@@ -22,7 +22,7 @@ function LoginShell({ children }: { children?: React.ReactNode }) {
       </div>
       <div className="bg-fh-green rounded-lg p-8 shadow-sm">
         <h1 className="text-xl font-bold text-white text-center uppercase tracking-wide">
-          FarmHouse Alumni
+          FarmHouse Directory
         </h1>
         <p className="text-xs text-center text-fh-gold tracking-[0.2em] uppercase mt-1">
           Kansas State Chapter

@@ -1,4 +1,4 @@
-# Kansas State FarmHouse Alumni
+# Kansas State FarmHouse Directory
 
 Private directory for the Kansas State Chapter of FarmHouse Fraternity. Built with Next.js 16 (App Router) and Supabase.
 
@@ -33,7 +33,7 @@ The shield logo at [src/components/Logo.tsx](src/components/Logo.tsx) is a simpl
 
 ### 1. Create the Supabase project
 
-1. Go to <https://supabase.com> and create a new project named `ksfh-alumni`.
+1. Go to <https://supabase.com> and create a new project named `ksfh-directory`.
 2. Wait for provisioning to finish.
 3. Copy the project URL and `anon` key from **Settings → API**.
 
