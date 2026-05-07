@@ -101,6 +101,10 @@ export type Database = {
         Args: { uid: string };
         Returns: boolean;
       };
+      claim_stub_profile: {
+        Args: { stub_id: string };
+        Returns: string;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

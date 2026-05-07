@@ -31,12 +31,56 @@ function extFromMime(mime: string): string {
   return "bin";
 }
 
+export async function claimStubProfile(formData: FormData) {
+  const stubId = formData.get("stub_id");
+  if (typeof stubId !== "string" || !stubId) {
+    throw new Error("Pick your name from the list to claim your profile");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data, error } = await supabase.rpc("claim_stub_profile", {
+    stub_id: stubId,
+  });
+  if (error) {
+    console.error("[claimStubProfile] failed", {
+      userId: user.id,
+      stubId,
+      pgCode: error.code,
+      pgMessage: error.message,
+      pgDetails: error.details,
+      pgHint: error.hint,
+    });
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/directory");
+  revalidatePath("/family-tree");
+  redirect(`/profile/${data}/edit`);
+}
+
 export async function createOwnProfile(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Defense against double-create (e.g., a tab left open after a successful
+  // claim in another tab). The middleware already redirects users with a
+  // profile away from /profile/new, but the action itself shouldn't trust that.
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (existing) {
+    redirect(`/profile/${existing.id}`);
+  }
 
   const fullName = nullable(formData.get("full_name"));
   const pledgeClass = nullable(formData.get("pledge_class"));

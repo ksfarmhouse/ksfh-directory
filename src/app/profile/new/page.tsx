@@ -6,7 +6,7 @@ import { fetchBigBrotherCandidates } from "@/lib/family";
 import { US_STATES } from "@/lib/states";
 import { createClient } from "@/lib/supabase/server";
 
-import { createOwnProfile } from "./actions";
+import { claimStubProfile, createOwnProfile } from "./actions";
 
 export default async function NewProfilePage() {
   const supabase = await createClient();
@@ -32,6 +32,29 @@ export default async function NewProfilePage() {
   const classes = pledgeClasses ?? [];
   const bigBrotherGroups = await fetchBigBrotherCandidates(supabase);
 
+  // Unclaimed stubs (imported from the family tree) that this brother could
+  // claim instead of creating a new profile.
+  const { data: stubsRaw } = await supabase
+    .from("profiles")
+    .select("id, full_name, pledge_class")
+    .is("user_id", null)
+    .eq("hidden", false)
+    .order("pledge_class", { ascending: true })
+    .order("full_name", { ascending: true });
+  const stubs = stubsRaw ?? [];
+
+  const stubGroups: { name: string; brothers: typeof stubs }[] = [];
+  const stubGroupIndex = new Map<string, typeof stubs>();
+  for (const s of stubs) {
+    let bucket = stubGroupIndex.get(s.pledge_class);
+    if (!bucket) {
+      bucket = [];
+      stubGroupIndex.set(s.pledge_class, bucket);
+      stubGroups.push({ name: s.pledge_class, brothers: bucket });
+    }
+    bucket.push(s);
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
       <h1 className="text-2xl sm:text-3xl font-bold text-fh-green tracking-tight">
@@ -39,8 +62,54 @@ export default async function NewProfilePage() {
       </h1>
       <div className="h-1 w-12 bg-fh-gold mt-2 mb-4" />
       <p className="text-fh-gray-light mb-6">
-        Signed in as {user.email}. Fill in your info — you can update it
-        anytime.
+        Signed in as {user.email}.
+      </p>
+
+      {stubs.length > 0 && (
+        <section className="bg-fh-green rounded-lg p-6 shadow-sm mb-8">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-fh-gold font-bold mb-1">
+            Already in the family tree?
+          </p>
+          <h2 className="text-lg font-bold text-white">
+            Claim your existing profile
+          </h2>
+          <p className="text-sm text-white/85 mt-2 mb-4">
+            If a brother set you up in the tree, find your name below — picking
+            it links your account to that profile so you don&apos;t end up with
+            duplicates.
+          </p>
+          <form action={claimStubProfile} className="flex flex-col sm:flex-row gap-2">
+            <select
+              name="stub_id"
+              required
+              defaultValue=""
+              className="flex-1 h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green font-medium focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
+            >
+              <option value="" disabled>
+                Find your name…
+              </option>
+              {stubGroups.map((group) => (
+                <optgroup key={group.name} label={group.name}>
+                  {group.brothers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.full_name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="h-10 px-5 rounded-md bg-fh-gold text-fh-green font-semibold hover:bg-fh-gold-700 transition"
+            >
+              Claim
+            </button>
+          </form>
+        </section>
+      )}
+
+      <p className="text-[10px] uppercase tracking-[0.2em] text-fh-gray-light font-semibold mb-3">
+        {stubs.length > 0 ? "Or create a new profile" : "Create your profile"}
       </p>
 
       {classes.length === 0 ? (
