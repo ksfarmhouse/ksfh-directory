@@ -191,7 +191,7 @@ export default async function EditProfilePage({ params }: { params: Params }) {
             name="partner_name"
             defaultValue={profile.partner_name}
           />
-          <div className="sm:col-span-2">
+          <div>
             <FieldLabel>Big Brother</FieldLabel>
             <select
               name="big_brother_id"

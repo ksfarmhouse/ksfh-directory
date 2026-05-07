@@ -156,7 +156,6 @@ export default async function ProfilePage({ params }: { params: Params }) {
             value={formatLocation(profile.city, profile.state)}
           />
           <Field label="Birthday" value={formatBirthday(profile.birthday)} />
-          <Field label="Big Brother" value={bigBrotherNode} />
           <Field
             label="Relationship"
             value={
@@ -167,46 +166,49 @@ export default async function ProfilePage({ params }: { params: Params }) {
             }
           />
           <Field label="Partner" value={profile.partner_name} />
+          <Field label="Big Brother" value={bigBrotherNode} />
+          <div className="sm:col-span-2">
+            <dt className="text-[10px] uppercase tracking-[0.15em] text-fh-gold font-semibold">
+              Little Brothers
+            </dt>
+            <dd className="mt-1">
+              {(littleBrothers?.length ?? 0) > 0 ? (
+                <ul className="flex flex-wrap gap-2">
+                  {littleBrothers!.map((l) => {
+                    const inner = (
+                      <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full pl-1 pr-3 py-1 hover:bg-white/15 transition">
+                        <Avatar
+                          url={avatarUrl(supabase, l.avatar_path)}
+                          name={l.full_name}
+                          size={28}
+                        />
+                        <span className="text-sm font-medium text-white">
+                          {l.full_name}
+                        </span>
+                        <span className="text-[10px] tracking-wider text-fh-gold">
+                          {l.pledge_class}
+                        </span>
+                      </span>
+                    );
+                    return (
+                      <li key={l.id}>
+                        {l.user_id ? (
+                          <Link href={`/profile/${l.id}`}>{inner}</Link>
+                        ) : (
+                          inner
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <span className="text-white/40 italic">
+                  No little brothers yet
+                </span>
+              )}
+            </dd>
+          </div>
         </dl>
-
-        {(littleBrothers?.length ?? 0) > 0 && (
-          <>
-            <div className="h-px bg-fh-gold/40" />
-            <div className="px-4 sm:px-6 py-5">
-              <p className="text-[10px] uppercase tracking-[0.15em] text-fh-gold font-semibold mb-3">
-                Little Brothers
-              </p>
-              <ul className="flex flex-wrap gap-2">
-                {littleBrothers!.map((l) => {
-                  const inner = (
-                    <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full pl-1 pr-3 py-1 hover:bg-white/15 transition">
-                      <Avatar
-                        url={avatarUrl(supabase, l.avatar_path)}
-                        name={l.full_name}
-                        size={28}
-                      />
-                      <span className="text-sm font-medium text-white">
-                        {l.full_name}
-                      </span>
-                      <span className="text-[10px] tracking-wider text-fh-gold">
-                        {l.pledge_class}
-                      </span>
-                    </span>
-                  );
-                  return (
-                    <li key={l.id}>
-                      {l.user_id ? (
-                        <Link href={`/profile/${l.id}`}>{inner}</Link>
-                      ) : (
-                        inner
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );
