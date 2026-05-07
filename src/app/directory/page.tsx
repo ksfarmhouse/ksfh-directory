@@ -1,27 +1,38 @@
 import Link from "next/link";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { Avatar } from "@/components/Avatar";
+import { BrotherCard } from "@/components/BrotherCard";
+import { MonthFilter } from "@/components/MonthFilter";
 import { NextBirthdayCard } from "@/components/NextBirthdayCard";
 import { avatarUrl } from "@/lib/avatar";
-import { daysUntilBirthday, formatPhone } from "@/lib/format";
-import { formatLocation } from "@/lib/states";
+import { daysUntilBirthday } from "@/lib/format";
+import {
+  emphasisFor,
+  filterByMonth,
+  parseMonth,
+  parseSort,
+  sortProfiles,
+  type Sort,
+} from "@/lib/sort";
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/types";
 
-type SearchParams = Promise<{ q?: string }>;
+type SearchParams = Promise<{ q?: string; sort?: string; month?: string }>;
+
+const HOME = "/directory";
 
 export default async function DirectoryPage({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
-  const { q = "" } = await searchParams;
-  if (q.trim().length > 0) {
-    return <SearchResults query={q.trim()} />;
-  }
-  return <PledgeClassGrid />;
-}
+  const { q = "", sort: sortRaw, month: monthRaw } = await searchParams;
+  const trimmedQ = q.trim();
+  const sort = parseSort(sortRaw);
+  const month = parseMonth(monthRaw);
+  const hasFilter =
+    trimmedQ.length > 0 || sort !== "name" || month !== null;
 
-async function PledgeClassGrid() {
   const supabase = await createClient();
 
   const [{ data: pledgeClasses }, { data: visibleProfiles }] = await Promise.all([
@@ -33,30 +44,61 @@ async function PledgeClassGrid() {
       .order("name", { ascending: false }),
     supabase
       .from("profiles")
-      .select("id, full_name, pledge_class, avatar_path, birthday")
+      .select(
+        "id, full_name, pledge_class, employment_status, position, university, phone, city, state, avatar_path, birthday",
+      )
       .eq("hidden", false),
   ]);
 
+  const allProfiles = visibleProfiles ?? [];
+  const totalBrothers = allProfiles.length;
+
+  // PC counts (from unfiltered visible set).
   const counts: Record<string, number> = {};
-  for (const p of visibleProfiles ?? []) {
+  for (const p of allProfiles) {
     counts[p.pledge_class] = (counts[p.pledge_class] ?? 0) + 1;
   }
+  const classes = (pledgeClasses ?? []).filter(
+    (pc) => (counts[pc.name] ?? 0) > 0,
+  );
 
-  const classes = (pledgeClasses ?? []).filter((pc) => (counts[pc.name] ?? 0) > 0);
-  const totalBrothers = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  // Apply text search + month filter, then sort, for the flat list view.
+  let filtered = allProfiles;
+  if (trimmedQ) {
+    const lower = trimmedQ.toLowerCase();
+    filtered = filtered.filter((p) =>
+      [p.full_name, p.position, p.university, p.city, p.state].some(
+        (v) => v && v.toLowerCase().includes(lower),
+      ),
+    );
+  }
+  filtered = filterByMonth(filtered, month);
+  filtered = sortProfiles(filtered, sort);
 
+  // Next upcoming birthday across all visible brothers.
   const today = new Date();
-  const upcoming = (visibleProfiles ?? [])
+  const upcoming = allProfiles
     .filter((p) => p.birthday)
     .map((p) => ({ p, days: daysUntilBirthday(p.birthday, today) }))
     .filter(
       (x): x is {
-        p: NonNullable<typeof visibleProfiles>[number];
+        p: (typeof allProfiles)[number];
         days: number;
       } => x.days !== null,
     )
     .sort((a, b) => a.days - b.days);
-  const next = upcoming[0];
+  const nextBirthday = upcoming[0];
+
+  const buildSortHref = (newSort: Sort) => {
+    const p = new URLSearchParams();
+    if (trimmedQ) p.set("q", trimmedQ);
+    if (newSort !== "name") p.set("sort", newSort);
+    if (month !== null) p.set("month", String(month));
+    const qs = p.toString();
+    return qs ? `${HOME}?${qs}` : HOME;
+  };
+
+  const emphasis = emphasisFor(sort, month);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
@@ -65,177 +107,209 @@ async function PledgeClassGrid() {
           Brotherhood Directory
         </h1>
         <span className="text-sm text-fh-gray-light">
-          {totalBrothers} {totalBrothers === 1 ? "brother" : "brothers"}
+          {hasFilter
+            ? `${filtered.length} of ${totalBrothers}`
+            : `${totalBrothers} ${totalBrothers === 1 ? "brother" : "brothers"}`}
         </span>
       </div>
       <div className="h-1 w-16 bg-fh-gold mb-6" />
 
-      {next && next.p.birthday && (
+      {nextBirthday && nextBirthday.p.birthday && (
         <NextBirthdayCard
-          profileId={next.p.id}
-          name={next.p.full_name}
-          avatarUrl={avatarUrl(supabase, next.p.avatar_path)}
-          birthday={next.p.birthday}
-          daysUntil={next.days}
+          profileId={nextBirthday.p.id}
+          name={nextBirthday.p.full_name}
+          avatarUrl={avatarUrl(supabase, nextBirthday.p.avatar_path)}
+          birthday={nextBirthday.p.birthday}
+          daysUntil={nextBirthday.days}
         />
       )}
 
-      <form className="mb-8" action="/directory">
+      <form className="mb-4" action={HOME}>
+        {sort !== "name" && (
+          <input type="hidden" name="sort" value={sort} />
+        )}
+        {month !== null && (
+          <input type="hidden" name="month" value={String(month)} />
+        )}
         <input
           name="q"
+          defaultValue={trimmedQ}
           placeholder="Search by name, company, location…"
           className="w-full h-11 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green placeholder:text-fh-green/60 focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-green/20"
         />
       </form>
 
-      <p className="text-xs uppercase tracking-[0.2em] text-fh-gray-light font-semibold mb-3">
-        Browse by pledge class
-      </p>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 text-sm">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-fh-gray-light font-semibold mr-1">
+            Sort by
+          </span>
+          <SortLink href={buildSortHref("name")} active={sort === "name"} label="Name" />
+          <SortLink href={buildSortHref("city")} active={sort === "city"} label="City" />
+          <SortLink href={buildSortHref("state")} active={sort === "state"} label="State" />
+          <SortLink href={buildSortHref("birthday")} active={sort === "birthday"} label="Birthday" />
+          <SortLink href={buildSortHref("next-birthday")} active={sort === "next-birthday"} label="Next Birthday" />
+        </div>
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-fh-gray-light font-semibold mr-1">
+            Birthday Month
+          </span>
+          <MonthFilter
+            basePath={HOME}
+            currentMonth={month}
+            sort={sort}
+            query={trimmedQ || undefined}
+          />
+        </div>
+      </div>
 
-      {classes.length === 0 ? (
-        <p className="text-center text-fh-gray-light py-12">
-          No pledge classes with brothers yet.
-        </p>
+      {hasFilter && (
+        <div className="mb-4">
+          <Link
+            href={HOME}
+            className="text-xs uppercase tracking-[0.18em] text-fh-gray-light hover:text-fh-green font-semibold transition"
+          >
+            ← Clear filters
+          </Link>
+        </div>
+      )}
+
+      {hasFilter ? (
+        <FlatBrothersList
+          profiles={filtered}
+          supabase={supabase}
+          emphasis={emphasis}
+          query={trimmedQ}
+        />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {classes.map((pc) => {
-            const count = counts[pc.name] ?? 0;
-            return (
-              <li key={pc.name}>
-                <Link
-                  href={`/directory/${encodeURIComponent(pc.name)}`}
-                  className="flex items-center justify-between gap-4 bg-fh-green rounded-lg px-5 py-5 hover:bg-fh-green/85 hover:shadow-md transition group"
-                >
-                  <div>
-                    <h2 className="text-2xl font-bold text-white tracking-tight">
-                      {pc.name}
-                    </h2>
-                    <p className="text-sm text-fh-gold font-medium mt-0.5">
-                      {count} {count === 1 ? "brother" : "brothers"}
-                    </p>
-                  </div>
-                  <span
-                    aria-hidden="true"
-                    className="text-fh-gold text-2xl font-bold group-hover:translate-x-1 transition-transform"
-                  >
-                    →
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <PledgeClassGrid classes={classes} counts={counts} />
       )}
     </div>
   );
 }
 
-async function SearchResults({ query }: { query: string }) {
-  const supabase = await createClient();
-  const term = `%${query}%`;
-
-  const { data: profiles, error } = await supabase
-    .from("profiles")
-    .select(
-      "id, full_name, pledge_class, employment_status, position, university, phone, city, state, avatar_path",
-    )
-    .eq("hidden", false)
-    .or(
-      `full_name.ilike.${term},company.ilike.${term},city.ilike.${term},state.ilike.${term},position.ilike.${term},university.ilike.${term}`,
-    )
-    .order("pledge_class", { ascending: false })
-    .order("full_name", { ascending: true });
+function PledgeClassGrid({
+  classes,
+  counts,
+}: {
+  classes: { name: string; display_order: number }[];
+  counts: Record<string, number>;
+}) {
+  if (classes.length === 0) {
+    return (
+      <p className="text-center text-fh-gray-light py-12">
+        No pledge classes with brothers yet.
+      </p>
+    );
+  }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
-      <Link
-        href="/directory"
-        className="text-sm text-fh-gray-light hover:text-fh-green transition"
-      >
-        ← All pledge classes
-      </Link>
-
-      <h1 className="text-2xl sm:text-3xl font-bold text-fh-green tracking-tight mt-3">
-        Search results
-      </h1>
-      <p className="text-sm text-fh-gray-light mt-1">
-        {profiles?.length ?? 0}{" "}
-        {profiles?.length === 1 ? "match" : "matches"} for{" "}
-        <span className="font-semibold text-fh-green">&ldquo;{query}&rdquo;</span>
+    <>
+      <p className="text-xs uppercase tracking-[0.2em] text-fh-gray-light font-semibold mb-3">
+        Browse by pledge class
       </p>
-      <div className="h-1 w-16 bg-fh-gold mt-2 mb-6" />
-
-      <form className="mb-8" action="/directory">
-        <input
-          name="q"
-          defaultValue={query}
-          placeholder="Search by name, company, location…"
-          className="w-full h-11 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green placeholder:text-fh-green/60 focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-green/20"
-        />
-      </form>
-
-      {error && (
-        <p className="text-sm text-red-600 mb-4">
-          Error loading directory: {error.message}
-        </p>
-      )}
-
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {(profiles ?? []).map((p) => (
-          <li key={p.id}>
-            <Link
-              href={`/profile/${p.id}`}
-              className="flex items-start gap-3 bg-fh-green rounded-lg p-4 hover:bg-fh-green/85 hover:shadow-md transition group"
-            >
-              <Avatar
-                url={avatarUrl(supabase, p.avatar_path)}
-                name={p.full_name}
-                size={44}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-0.5">
-                  <h2 className="font-bold text-white truncate">{p.full_name}</h2>
-                  <span className="text-xs font-semibold text-fh-gold tracking-wide shrink-0">
-                    {p.pledge_class}
-                  </span>
-                </div>
-                {(() => {
-                  const line =
-                    p.employment_status === "postgrad" ? p.university : p.position;
-                  return line ? (
-                    <p className="text-sm text-white/90 truncate">{line}</p>
-                  ) : null;
-                })()}
-                {(() => {
-                  const loc = formatLocation(p.city, p.state);
-                  return loc ? (
-                    <p className="text-sm text-white/75 mt-0.5 truncate">
-                      {loc}
-                    </p>
-                  ) : null;
-                })()}
-                {p.phone && (
-                  <p className="text-sm text-white/75 mt-0.5 truncate">
-                    {formatPhone(p.phone)}
-                  </p>
-                )}
-              </div>
-              <span
-                aria-hidden="true"
-                className="text-fh-gold text-xl font-bold self-center shrink-0 group-hover:translate-x-1 transition-transform"
+      <ul className="grid gap-3 sm:grid-cols-2">
+        {classes.map((pc) => {
+          const count = counts[pc.name] ?? 0;
+          return (
+            <li key={pc.name}>
+              <Link
+                href={`/directory/${encodeURIComponent(pc.name)}`}
+                className="flex items-center justify-between gap-4 bg-fh-green rounded-lg px-5 py-5 hover:bg-fh-green/85 hover:shadow-md transition group"
               >
-                →
-              </span>
-            </Link>
-          </li>
-        ))}
+                <div>
+                  <h2 className="text-2xl font-bold text-white tracking-tight">
+                    {pc.name}
+                  </h2>
+                  <p className="text-sm text-fh-gold font-medium mt-0.5">
+                    {count} {count === 1 ? "brother" : "brothers"}
+                  </p>
+                </div>
+                <span
+                  aria-hidden="true"
+                  className="text-fh-gold text-2xl font-bold group-hover:translate-x-1 transition-transform"
+                >
+                  →
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
+    </>
+  );
+}
 
-      {profiles?.length === 0 && (
-        <p className="text-center text-fh-gray-light py-12">
-          No brothers matched &ldquo;{query}&rdquo;.
-        </p>
-      )}
-    </div>
+type FlatProfile = {
+  id: string;
+  full_name: string;
+  pledge_class: string;
+  employment_status: string | null;
+  position: string | null;
+  university: string | null;
+  phone: string | null;
+  city: string | null;
+  state: string | null;
+  avatar_path: string | null;
+  birthday: string | null;
+};
+
+function FlatBrothersList({
+  profiles,
+  supabase,
+  emphasis,
+  query,
+}: {
+  profiles: FlatProfile[];
+  supabase: SupabaseClient<Database>;
+  emphasis: ReturnType<typeof emphasisFor>;
+  query: string;
+}) {
+  if (profiles.length === 0) {
+    return (
+      <p className="text-center text-fh-gray-light py-12">
+        {query
+          ? `No brothers matched "${query}".`
+          : "No brothers match the current filters."}
+      </p>
+    );
+  }
+
+  return (
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {profiles.map((p) => (
+        <li key={p.id}>
+          <BrotherCard
+            profile={p}
+            avatarUrl={avatarUrl(supabase, p.avatar_path)}
+            emphasis={emphasis}
+            showPledgeClass
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SortLink({
+  href,
+  active,
+  label,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`px-3 py-1 rounded-md font-medium transition ${
+        active
+          ? "bg-fh-green text-white"
+          : "text-fh-gray hover:bg-fh-gray/10"
+      }`}
+    >
+      {label}
+    </Link>
   );
 }

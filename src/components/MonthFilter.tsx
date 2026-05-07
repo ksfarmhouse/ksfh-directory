@@ -22,15 +22,23 @@ type Props = {
   basePath: string;
   /** Current month (1–12) or null for "All". */
   currentMonth: number | null;
-  /** Current sort, preserved across the navigation. */
+  /** Current sort, preserved across navigation. */
   sort: string;
+  /** Optional search query, preserved across navigation. */
+  query?: string;
 };
 
-export function MonthFilter({ basePath, currentMonth, sort }: Props) {
+export function MonthFilter({
+  basePath,
+  currentMonth,
+  sort,
+  query,
+}: Props) {
   const router = useRouter();
 
   function handleChange(e: ChangeEvent<HTMLSelectElement>) {
     const params = new URLSearchParams();
+    if (query) params.set("q", query);
     if (sort && sort !== "name") params.set("sort", sort);
     if (e.target.value) params.set("month", e.target.value);
     const qs = params.toString();
