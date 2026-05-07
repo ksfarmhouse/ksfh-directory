@@ -4,6 +4,7 @@ import { Avatar } from "@/components/Avatar";
 import { EmploymentFields } from "@/components/EmploymentFields";
 import { PhoneInput } from "@/components/PhoneInput";
 import { avatarUrl } from "@/lib/avatar";
+import { fetchBigBrotherCandidates } from "@/lib/family";
 import { US_STATES } from "@/lib/states";
 import { createClient } from "@/lib/supabase/server";
 
@@ -49,6 +50,8 @@ export default async function EditProfilePage({ params }: { params: Params }) {
     .order("name", { ascending: false });
 
   const currentAvatar = avatarUrl(supabase, profile.avatar_path);
+
+  const bigBrotherGroups = await fetchBigBrotherCandidates(supabase, profile.id);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
@@ -188,6 +191,25 @@ export default async function EditProfilePage({ params }: { params: Params }) {
             name="partner_name"
             defaultValue={profile.partner_name}
           />
+          <div className="sm:col-span-2">
+            <FieldLabel>Big Brother</FieldLabel>
+            <select
+              name="big_brother_id"
+              defaultValue={profile.big_brother_id ?? ""}
+              className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green font-medium focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
+            >
+              <option value="">— None —</option>
+              {bigBrotherGroups.map((group) => (
+                <optgroup key={group.name} label={group.name}>
+                  {group.brothers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.full_name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="flex gap-3 pt-2">

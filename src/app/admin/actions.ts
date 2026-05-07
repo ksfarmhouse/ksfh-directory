@@ -49,6 +49,8 @@ export async function createProfile(formData: FormData) {
       ? birthdayRaw
       : null;
 
+  const bigBrotherId = nullable(formData.get("big_brother_id"));
+
   const supabase = await createClient();
   const { error } = await supabase.from("profiles").insert({
     full_name: fullName,
@@ -61,6 +63,7 @@ export async function createProfile(formData: FormData) {
     personal_email: nullable(formData.get("personal_email")),
     home_address: nullable(formData.get("home_address")),
     birthday,
+    big_brother_id: bigBrotherId,
   });
 
   if (error) throw new Error(error.message);

@@ -28,6 +28,7 @@ export type Profile = {
   hidden: boolean;
   avatar_path: string | null;
   birthday: string | null;
+  big_brother_id: string | null;
   claimed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -54,6 +55,7 @@ export type ProfileInsert = {
   hidden?: boolean;
   avatar_path?: string | null;
   birthday?: string | null;
+  big_brother_id?: string | null;
   claimed_at?: string | null;
   created_at?: string;
   updated_at?: string;

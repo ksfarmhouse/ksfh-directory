@@ -66,6 +66,10 @@ export async function updateProfile(formData: FormData) {
       ? birthdayRaw
       : null;
 
+  const bigBrotherRaw = nullable(formData.get("big_brother_id"));
+  const bigBrotherId =
+    bigBrotherRaw && bigBrotherRaw !== id ? bigBrotherRaw : null;
+
   const employmentRaw = nullable(formData.get("employment_status"));
   const employmentStatus: EmploymentStatus =
     employmentRaw === "postgrad" ? "postgrad" : "employed";
@@ -92,6 +96,7 @@ export async function updateProfile(formData: FormData) {
     personal_email: nullable(formData.get("personal_email")),
     home_address: nullable(formData.get("home_address")),
     birthday,
+    big_brother_id: bigBrotherId,
     relationship_status: relationship,
     partner_name: nullable(formData.get("partner_name")),
   };

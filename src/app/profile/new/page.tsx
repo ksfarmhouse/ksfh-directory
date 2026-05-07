@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { EmploymentFields } from "@/components/EmploymentFields";
 import { PhoneInput } from "@/components/PhoneInput";
+import { fetchBigBrotherCandidates } from "@/lib/family";
 import { US_STATES } from "@/lib/states";
 import { createClient } from "@/lib/supabase/server";
 
@@ -29,6 +30,7 @@ export default async function NewProfilePage() {
     .order("name", { ascending: false });
 
   const classes = pledgeClasses ?? [];
+  const bigBrotherGroups = await fetchBigBrotherCandidates(supabase);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
@@ -149,6 +151,25 @@ export default async function NewProfilePage() {
               </select>
             </div>
             <Field label="Partner name" name="partner_name" />
+            <div className="sm:col-span-2">
+              <FieldLabel>Big Brother</FieldLabel>
+              <select
+                name="big_brother_id"
+                defaultValue=""
+                className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green font-medium focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
+              >
+                <option value="">— None —</option>
+                {bigBrotherGroups.map((group) => (
+                  <optgroup key={group.name} label={group.name}>
+                    {group.brothers.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.full_name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-2">

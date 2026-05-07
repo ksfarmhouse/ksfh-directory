@@ -87,6 +87,8 @@ export async function createOwnProfile(formData: FormData) {
       ? birthdayRaw
       : null;
 
+  const bigBrotherId = nullable(formData.get("big_brother_id"));
+
   const employmentRaw = nullable(formData.get("employment_status"));
   const employmentStatus: EmploymentStatus =
     employmentRaw === "postgrad" ? "postgrad" : "employed";
@@ -114,6 +116,7 @@ export async function createOwnProfile(formData: FormData) {
         nullable(formData.get("personal_email")) ?? user.email ?? null,
       home_address: nullable(formData.get("home_address")),
       birthday,
+      big_brother_id: bigBrotherId,
       relationship_status: relationship,
       partner_name: nullable(formData.get("partner_name")),
       avatar_path: avatarPath,

@@ -49,6 +49,36 @@ export default async function ProfilePage({ params }: { params: Params }) {
   const canEdit = isOwner || isAdmin;
   const avatar = avatarUrl(supabase, profile.avatar_path);
 
+  const bigBroQuery = profile.big_brother_id
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name, user_id, avatar_path")
+        .eq("id", profile.big_brother_id)
+        .maybeSingle()
+    : null;
+  const bigBro = bigBroQuery?.data ?? null;
+
+  const { data: littleBrothers } = await supabase
+    .from("profiles")
+    .select("id, full_name, user_id, avatar_path, pledge_class")
+    .eq("big_brother_id", profile.id)
+    .eq("hidden", false)
+    .order("pledge_class", { ascending: true })
+    .order("full_name", { ascending: true });
+
+  const bigBrotherNode = bigBro ? (
+    bigBro.user_id ? (
+      <Link
+        href={`/profile/${bigBro.id}`}
+        className="hover:underline text-fh-gold font-semibold"
+      >
+        {bigBro.full_name}
+      </Link>
+    ) : (
+      <span className="font-semibold">{bigBro.full_name}</span>
+    )
+  ) : null;
+
   const phoneNode = profile.phone ? (
     <a
       href={`tel:${profile.phone.replace(/\D/g, "")}`}
@@ -126,6 +156,7 @@ export default async function ProfilePage({ params }: { params: Params }) {
             value={formatLocation(profile.city, profile.state)}
           />
           <Field label="Birthday" value={formatBirthday(profile.birthday)} />
+          <Field label="Big Brother" value={bigBrotherNode} />
           <Field
             label="Relationship"
             value={
@@ -137,6 +168,45 @@ export default async function ProfilePage({ params }: { params: Params }) {
           />
           <Field label="Partner" value={profile.partner_name} />
         </dl>
+
+        {(littleBrothers?.length ?? 0) > 0 && (
+          <>
+            <div className="h-px bg-fh-gold/40" />
+            <div className="px-4 sm:px-6 py-5">
+              <p className="text-[10px] uppercase tracking-[0.15em] text-fh-gold font-semibold mb-3">
+                Little Brothers
+              </p>
+              <ul className="flex flex-wrap gap-2">
+                {littleBrothers!.map((l) => {
+                  const inner = (
+                    <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full pl-1 pr-3 py-1 hover:bg-white/15 transition">
+                      <Avatar
+                        url={avatarUrl(supabase, l.avatar_path)}
+                        name={l.full_name}
+                        size={28}
+                      />
+                      <span className="text-sm font-medium text-white">
+                        {l.full_name}
+                      </span>
+                      <span className="text-[10px] tracking-wider text-fh-gold">
+                        {l.pledge_class}
+                      </span>
+                    </span>
+                  );
+                  return (
+                    <li key={l.id}>
+                      {l.user_id ? (
+                        <Link href={`/profile/${l.id}`}>{inner}</Link>
+                      ) : (
+                        inner
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
