@@ -4,11 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 
 const NODE_W = 150;
 const NODE_H = 48;
-const COL_SPACING = NODE_W + 14; // horizontal step between nodes within a row
 const ROW_HEIGHT = 130; // vertical step between pledge classes
 const PADDING_X = 32;
 const PADDING_Y = 32;
 const PC_LABEL_W = 70; // gutter on the left for the pledge-class label
+const SOURCE_JOG = 30; // px below source where the horizontal connector runs
 
 type ProfileNode = {
   id: string;
@@ -62,13 +62,14 @@ export default async function FamilyTreePage() {
 }
 
 function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
-  // 1. Run dagre to get a sensible left-to-right ordering for each rank.
-  //    We don't trust its Y output — we'll override that below — but its X
-  //    ordering minimises edge crossings within a rank.
+  // 1. Run dagre to get good X positions — siblings spread out, children
+  //    aligned with parents. We DO NOT trust dagre's Y output; it places
+  //    nodes by edge depth, which makes brothers from the same PC end up
+  //    on different rows when their bigs are different distances back.
   const g = new Graph();
   g.setGraph({
     rankdir: "TB",
-    ranksep: 50,
+    ranksep: 60,
     nodesep: 14,
     marginx: 0,
     marginy: 0,
@@ -85,52 +86,46 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
   }
   layout(g);
 
-  // 2. Bucket every brother into the row that matches his pledge class.
-  //    PCs sort cleanly as strings ("PC '06" < "PC '07" < … < "PC '24") because
-  //    drawio's two-digit year happens to be alphabetical-friendly here.
-  const pcSorted = Array.from(new Set(profiles.map((p) => p.pledge_class))).sort();
+  // 2. Determine pledge-class rows. Sort alphabetically — works for "PC 'XX"
+  //    until we wrap into the 2030s, then we'd need a real sort.
+  const pcSorted = Array.from(
+    new Set(profiles.map((p) => p.pledge_class)),
+  ).sort();
   const pcToRow = new Map(pcSorted.map((pc, i) => [pc, i]));
 
-  type Placed = {
-    id: string;
-    profile: ProfileNode;
-    dagreX: number;
-  };
-  const rows: Placed[][] = pcSorted.map(() => []);
+  // 3. Compute final positions: dagre's X (shifted into the visible area),
+  //    PC-based Y. A brother whose big is two PCs back simply gets a longer
+  //    vertical line — the rows themselves stay locked to pledge classes.
+  let minX = Infinity;
+  let maxX = -Infinity;
   for (const p of profiles) {
-    const dagreNode = g.node(p.id) as { x: number } | undefined;
-    if (!dagreNode) continue;
+    const node = g.node(p.id) as { x?: number } | undefined;
+    if (!node || typeof node.x !== "number") continue;
+    if (node.x < minX) minX = node.x;
+    if (node.x > maxX) maxX = node.x;
+  }
+  if (!Number.isFinite(minX)) {
+    minX = 0;
+    maxX = 0;
+  }
+  const offsetX = PADDING_X + PC_LABEL_W + NODE_W / 2 - minX;
+
+  const positions = new Map<string, { x: number; y: number }>();
+  for (const p of profiles) {
+    const node = g.node(p.id) as { x?: number } | undefined;
+    if (!node || typeof node.x !== "number") continue;
     const row = pcToRow.get(p.pledge_class) ?? 0;
-    rows[row].push({ id: p.id, profile: p, dagreX: dagreNode.x });
+    positions.set(p.id, {
+      x: node.x + offsetX,
+      y: PADDING_Y + row * ROW_HEIGHT + NODE_H / 2,
+    });
   }
 
-  // 3. Sort each row by dagre's X (preserves crossing-minimising order)
-  //    and re-space with a fixed column step so rows look uniform.
-  const positions = new Map<string, { x: number; y: number }>();
-  let maxRowCount = 0;
-  rows.forEach((items, rowIdx) => {
-    items.sort((a, b) => a.dagreX - b.dagreX);
-    items.forEach((item, i) => {
-      positions.set(item.id, {
-        x:
-          PADDING_X +
-          PC_LABEL_W +
-          i * COL_SPACING +
-          COL_SPACING / 2,
-        y: PADDING_Y + rowIdx * ROW_HEIGHT + NODE_H / 2,
-      });
-    });
-    maxRowCount = Math.max(maxRowCount, items.length);
-  });
-
-  const totalWidth =
-    PADDING_X + PC_LABEL_W + maxRowCount * COL_SPACING + PADDING_X;
-  const totalHeight =
-    PADDING_Y + pcSorted.length * ROW_HEIGHT + PADDING_Y;
+  const totalWidth = maxX + offsetX + NODE_W / 2 + PADDING_X;
+  const totalHeight = PADDING_Y + pcSorted.length * ROW_HEIGHT + PADDING_Y;
 
   const profileById = new Map(profiles.map((p) => [p.id, p]));
 
-  // 4. Edge list. Source = big, target = little.
   const edges: { from: string; to: string }[] = [];
   for (const p of profiles) {
     if (p.big_brother_id && positions.has(p.big_brother_id)) {
@@ -147,6 +142,21 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
         xmlns="http://www.w3.org/2000/svg"
         style={{ display: "block" }}
       >
+        <defs>
+          <marker
+            id="ft-arrow"
+            markerWidth="8"
+            markerHeight="8"
+            refX="7"
+            refY="4"
+            orient="auto"
+            markerUnits="userSpaceOnUse"
+            fill="#ffce00"
+          >
+            <path d="M 0 0 L 8 4 L 0 8 Z" />
+          </marker>
+        </defs>
+
         {/* Faint horizontal guide + label per pledge-class row */}
         {pcSorted.map((pc, i) => {
           const y = PADDING_Y + i * ROW_HEIGHT + NODE_H / 2;
@@ -158,7 +168,7 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
                 x2={totalWidth - PADDING_X}
                 y2={y}
                 stroke="#54575a"
-                strokeOpacity="0.2"
+                strokeOpacity="0.18"
                 strokeWidth="1"
               />
               <text
@@ -177,7 +187,9 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
           );
         })}
 
-        {/* Edges as cubic bezier curves between source bottom & target top */}
+        {/* Edges. Orthogonal connector with the horizontal jog just below the
+            source — keeps multi-row spans clean and lets sibling edges share
+            a "T" segment near their parent. */}
         {edges.map((e) => {
           const src = positions.get(e.from);
           const tgt = positions.get(e.to);
@@ -186,16 +198,20 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
           const y1 = src.y + NODE_H / 2;
           const x2 = tgt.x;
           const y2 = tgt.y - NODE_H / 2;
-          const dy = (y2 - y1) * 0.5;
-          const d = `M ${x1} ${y1} C ${x1} ${y1 + dy}, ${x2} ${y2 - dy}, ${x2} ${y2}`;
+          const sameX = Math.abs(x1 - x2) < 0.5;
+          const yJog = Math.min(y1 + SOURCE_JOG, y2);
+          const d = sameX
+            ? `M ${x1} ${y1} L ${x2} ${y2}`
+            : `M ${x1} ${y1} L ${x1} ${yJog} L ${x2} ${yJog} L ${x2} ${y2}`;
           return (
             <path
               key={`${e.from}->${e.to}`}
               d={d}
               stroke="#ffce00"
-              strokeOpacity="0.55"
+              strokeOpacity="0.6"
               strokeWidth="1.5"
               fill="none"
+              markerEnd="url(#ft-arrow)"
             />
           );
         })}
