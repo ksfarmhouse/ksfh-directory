@@ -29,6 +29,12 @@ export function NavMenu({ isAuthed, isAdmin }: NavMenuProps) {
             <Link href="/directory" className="hover:text-fh-gold transition">
               Directory
             </Link>
+            <Link
+              href="/family-tree"
+              className="hover:text-fh-gold transition"
+            >
+              Family Tree
+            </Link>
             <Link href="/profile/me" className="hover:text-fh-gold transition">
               My Profile
             </Link>
@@ -102,6 +108,13 @@ export function NavMenu({ isAuthed, isAdmin }: NavMenuProps) {
                   className="block py-3 hover:text-fh-gold transition"
                 >
                   Directory
+                </Link>
+                <Link
+                  href="/family-tree"
+                  onClick={close}
+                  className="block py-3 hover:text-fh-gold transition border-t border-white/10"
+                >
+                  Family Tree
                 </Link>
                 <Link
                   href="/profile/me"
