@@ -70,10 +70,10 @@ export default async function ProfilePage({ params }: { params: Params }) {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <Link
-        href="/directory"
+        href={`/directory/${encodeURIComponent(profile.pledge_class)}`}
         className="text-sm text-fh-gray-light hover:text-fh-green transition"
       >
-        ← Back to directory
+        ← Back to {profile.pledge_class}
       </Link>
 
       <div className="bg-fh-green rounded-lg mt-4 overflow-hidden shadow-sm">
