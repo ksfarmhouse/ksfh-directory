@@ -2,19 +2,38 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Avatar } from "@/components/Avatar";
+import { MonthFilter } from "@/components/MonthFilter";
+import { NextBirthdayCard } from "@/components/NextBirthdayCard";
 import { avatarUrl } from "@/lib/avatar";
-import { formatPhone } from "@/lib/format";
+import {
+  birthdayMonthDayKey,
+  daysUntilBirthday,
+  formatPhone,
+} from "@/lib/format";
 import { formatLocation } from "@/lib/states";
 import { createClient } from "@/lib/supabase/server";
 
 type Params = Promise<{ pc: string }>;
-type SearchParams = Promise<{ sort?: string }>;
+type SearchParams = Promise<{ sort?: string; month?: string }>;
 
-type Sort = "name" | "city" | "state";
-const VALID_SORTS: readonly Sort[] = ["name", "city", "state"];
+type Sort = "name" | "city" | "state" | "birthday";
+const VALID_SORTS: readonly Sort[] = ["name", "city", "state", "birthday"];
 
 function parseSort(value: string | undefined): Sort {
   return VALID_SORTS.includes(value as Sort) ? (value as Sort) : "name";
+}
+
+function parseMonth(value: string | undefined): number | null {
+  if (!value) return null;
+  const n = parseInt(value, 10);
+  return n >= 1 && n <= 12 ? n : null;
+}
+
+function compareNullable(a: string | null, b: string | null): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a.localeCompare(b);
 }
 
 export default async function PledgeClassPage({
@@ -26,8 +45,9 @@ export default async function PledgeClassPage({
 }) {
   const { pc: pcEncoded } = await params;
   const pc = decodeURIComponent(pcEncoded);
-  const { sort: sortRaw } = await searchParams;
+  const { sort: sortRaw, month: monthRaw } = await searchParams;
   const sort = parseSort(sortRaw);
+  const month = parseMonth(monthRaw);
   const supabase = await createClient();
 
   const { data: pcRecord } = await supabase
@@ -38,29 +58,71 @@ export default async function PledgeClassPage({
 
   if (!pcRecord) notFound();
 
-  let query = supabase
+  const { data: profilesRaw, error } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, pledge_class, employment_status, position, university, phone, city, state, avatar_path",
+      "id, full_name, pledge_class, employment_status, position, university, phone, city, state, avatar_path, birthday",
     )
     .eq("hidden", false)
     .eq("pledge_class", pc);
 
-  if (sort === "city") {
-    query = query
-      .order("city", { ascending: true, nullsFirst: false })
-      .order("full_name", { ascending: true });
-  } else if (sort === "state") {
-    query = query
-      .order("state", { ascending: true, nullsFirst: false })
-      .order("city", { ascending: true, nullsFirst: false })
-      .order("full_name", { ascending: true });
-  } else {
-    query = query.order("full_name", { ascending: true });
+  // Apply month filter (client-side; data is small).
+  let profiles = profilesRaw ?? [];
+  if (month !== null) {
+    profiles = profiles.filter((p) => {
+      if (!p.birthday) return false;
+      const m = /^\d{4}-(\d{2})/.exec(p.birthday);
+      return m ? parseInt(m[1], 10) === month : false;
+    });
   }
 
-  const { data: profiles, error } = await query;
+  // Apply sort.
+  profiles = [...profiles].sort((a, b) => {
+    const nameCmp = a.full_name.localeCompare(b.full_name);
+    switch (sort) {
+      case "city":
+        return compareNullable(a.city, b.city) || nameCmp;
+      case "state":
+        return (
+          compareNullable(a.state, b.state) ||
+          compareNullable(a.city, b.city) ||
+          nameCmp
+        );
+      case "birthday":
+        return (
+          compareNullable(
+            birthdayMonthDayKey(a.birthday),
+            birthdayMonthDayKey(b.birthday),
+          ) || nameCmp
+        );
+      case "name":
+      default:
+        return nameCmp;
+    }
+  });
+
+  // Compute next upcoming birthday for this PC (always uses unfiltered set).
+  const today = new Date();
+  const upcoming = (profilesRaw ?? [])
+    .filter((p) => p.birthday)
+    .map((p) => ({ p, days: daysUntilBirthday(p.birthday, today) }))
+    .filter(
+      (x): x is {
+        p: NonNullable<typeof profilesRaw>[number];
+        days: number;
+      } => x.days !== null,
+    )
+    .sort((a, b) => a.days - b.days);
+  const nextBirthday = upcoming[0];
+
   const pcHref = `/directory/${encodeURIComponent(pc)}`;
+  const buildSortHref = (newSort: Sort) => {
+    const params = new URLSearchParams();
+    if (newSort !== "name") params.set("sort", newSort);
+    if (month !== null) params.set("month", String(month));
+    const qs = params.toString();
+    return qs ? `${pcHref}?${qs}` : pcHref;
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
@@ -81,27 +143,57 @@ export default async function PledgeClassPage({
           </h1>
         </div>
         <span className="text-sm text-fh-gray-light">
-          {profiles?.length ?? 0}{" "}
-          {profiles?.length === 1 ? "brother" : "brothers"}
+          {profiles.length} {profiles.length === 1 ? "brother" : "brothers"}
         </span>
       </div>
       <div className="h-1 w-16 bg-fh-gold mb-6" />
 
-      <div className="flex items-center gap-2 mb-6 text-sm">
-        <span className="text-[10px] uppercase tracking-[0.2em] text-fh-gray-light font-semibold mr-2">
-          Sort by
-        </span>
-        <SortLink href={pcHref} active={sort === "name"} label="Name" />
-        <SortLink
-          href={`${pcHref}?sort=city`}
-          active={sort === "city"}
-          label="City"
+      {nextBirthday && nextBirthday.p.birthday && (
+        <NextBirthdayCard
+          profileId={nextBirthday.p.id}
+          name={nextBirthday.p.full_name}
+          avatarUrl={avatarUrl(supabase, nextBirthday.p.avatar_path)}
+          birthday={nextBirthday.p.birthday}
+          daysUntil={nextBirthday.days}
         />
-        <SortLink
-          href={`${pcHref}?sort=state`}
-          active={sort === "state"}
-          label="State"
-        />
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 text-sm">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-fh-gray-light font-semibold mr-1">
+            Sort by
+          </span>
+          <SortLink
+            href={buildSortHref("name")}
+            active={sort === "name"}
+            label="Name"
+          />
+          <SortLink
+            href={buildSortHref("city")}
+            active={sort === "city"}
+            label="City"
+          />
+          <SortLink
+            href={buildSortHref("state")}
+            active={sort === "state"}
+            label="State"
+          />
+          <SortLink
+            href={buildSortHref("birthday")}
+            active={sort === "birthday"}
+            label="Birthday"
+          />
+        </div>
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-fh-gray-light font-semibold mr-1">
+            Month
+          </span>
+          <MonthFilter
+            basePath={pcHref}
+            currentMonth={month}
+            sort={sort}
+          />
+        </div>
       </div>
 
       {error && (
@@ -111,7 +203,7 @@ export default async function PledgeClassPage({
       )}
 
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {(profiles ?? []).map((p) => (
+        {profiles.map((p) => (
           <li key={p.id}>
             <Link
               href={`/profile/${p.id}`}
@@ -128,7 +220,9 @@ export default async function PledgeClassPage({
                 </h2>
                 {(() => {
                   const line =
-                    p.employment_status === "postgrad" ? p.university : p.position;
+                    p.employment_status === "postgrad"
+                      ? p.university
+                      : p.position;
                   return line ? (
                     <p className="text-sm text-white/90 truncate">{line}</p>
                   ) : null;
@@ -158,9 +252,11 @@ export default async function PledgeClassPage({
         ))}
       </ul>
 
-      {profiles?.length === 0 && (
+      {profiles.length === 0 && (
         <p className="text-center text-fh-gray-light py-12">
-          No brothers in {pc} yet.
+          {month !== null
+            ? `No brothers in ${pc} with a birthday this month.`
+            : `No brothers in ${pc} yet.`}
         </p>
       )}
     </div>

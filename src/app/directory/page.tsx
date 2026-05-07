@@ -1,8 +1,9 @@
 import Link from "next/link";
 
 import { Avatar } from "@/components/Avatar";
+import { NextBirthdayCard } from "@/components/NextBirthdayCard";
 import { avatarUrl } from "@/lib/avatar";
-import { formatPhone } from "@/lib/format";
+import { daysUntilBirthday, formatPhone } from "@/lib/format";
 import { formatLocation } from "@/lib/states";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,7 +33,7 @@ async function PledgeClassGrid() {
       .order("name", { ascending: false }),
     supabase
       .from("profiles")
-      .select("pledge_class")
+      .select("id, full_name, pledge_class, avatar_path, birthday")
       .eq("hidden", false),
   ]);
 
@@ -43,6 +44,19 @@ async function PledgeClassGrid() {
 
   const classes = (pledgeClasses ?? []).filter((pc) => (counts[pc.name] ?? 0) > 0);
   const totalBrothers = Object.values(counts).reduce((sum, n) => sum + n, 0);
+
+  const today = new Date();
+  const upcoming = (visibleProfiles ?? [])
+    .filter((p) => p.birthday)
+    .map((p) => ({ p, days: daysUntilBirthday(p.birthday, today) }))
+    .filter(
+      (x): x is {
+        p: NonNullable<typeof visibleProfiles>[number];
+        days: number;
+      } => x.days !== null,
+    )
+    .sort((a, b) => a.days - b.days);
+  const next = upcoming[0];
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
@@ -55,6 +69,16 @@ async function PledgeClassGrid() {
         </span>
       </div>
       <div className="h-1 w-16 bg-fh-gold mb-6" />
+
+      {next && next.p.birthday && (
+        <NextBirthdayCard
+          profileId={next.p.id}
+          name={next.p.full_name}
+          avatarUrl={avatarUrl(supabase, next.p.avatar_path)}
+          birthday={next.p.birthday}
+          daysUntil={next.days}
+        />
+      )}
 
       <form className="mb-8" action="/directory">
         <input
