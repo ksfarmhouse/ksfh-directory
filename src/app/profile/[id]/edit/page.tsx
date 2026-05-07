@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { Avatar } from "@/components/Avatar";
 import { EmploymentFields } from "@/components/EmploymentFields";
+import { PhoneInput } from "@/components/PhoneInput";
 import { avatarUrl } from "@/lib/avatar";
 import { US_STATES } from "@/lib/states";
 import { createClient } from "@/lib/supabase/server";
@@ -140,7 +141,14 @@ export default async function EditProfilePage({ params }: { params: Params }) {
               ))}
             </select>
           </div>
-          <Field label="Phone" name="phone" defaultValue={profile.phone} />
+          <div>
+            <FieldLabel>Phone</FieldLabel>
+            <PhoneInput
+              name="phone"
+              defaultValue={profile.phone}
+              className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green placeholder:text-fh-green/60 focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
+            />
+          </div>
           <Field
             label="Personal email"
             name="personal_email"

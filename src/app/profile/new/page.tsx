@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { EmploymentFields } from "@/components/EmploymentFields";
+import { PhoneInput } from "@/components/PhoneInput";
 import { US_STATES } from "@/lib/states";
 import { createClient } from "@/lib/supabase/server";
 
@@ -111,7 +112,13 @@ export default async function NewProfilePage() {
                 ))}
               </select>
             </div>
-            <Field label="Phone" name="phone" />
+            <div>
+              <FieldLabel>Phone</FieldLabel>
+              <PhoneInput
+                name="phone"
+                className="w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white text-fh-green placeholder:text-fh-green/60 focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-gold/40"
+              />
+            </div>
             <Field
               label="Personal email"
               name="personal_email"
