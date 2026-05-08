@@ -87,30 +87,32 @@ export default async function PledgeClassPage({
         ← All pledge classes
       </Link>
 
-      <div className="flex items-baseline justify-between mt-3 mb-2">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mt-3 mb-2">
         <div>
           <p className="text-[10px] uppercase tracking-[0.2em] text-fh-gold-700 font-semibold">
             Pledge class
           </p>
-          <h1 className="text-2xl sm:text-3xl font-bold text-fh-green tracking-tight mt-1 wrap-break-word">
-            {pc}
-          </h1>
+          <div className="flex items-baseline gap-3 flex-wrap mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-fh-green tracking-tight wrap-break-word">
+              {pc}
+            </h1>
+            <span className="text-sm text-fh-gray-light">
+              {profiles.length}{" "}
+              {profiles.length === 1 ? "brother" : "brothers"}
+            </span>
+          </div>
         </div>
-        <span className="text-sm text-fh-gray-light">
-          {profiles.length} {profiles.length === 1 ? "brother" : "brothers"}
-        </span>
+        {nextBirthday && nextBirthday.p.birthday && (
+          <NextBirthdayCard
+            profileId={nextBirthday.p.id}
+            name={nextBirthday.p.full_name}
+            avatarUrl={avatarUrl(supabase, nextBirthday.p.avatar_path)}
+            birthday={nextBirthday.p.birthday}
+            daysUntil={nextBirthday.days}
+          />
+        )}
       </div>
       <div className="h-1 w-16 bg-fh-gold mb-6" />
-
-      {nextBirthday && nextBirthday.p.birthday && (
-        <NextBirthdayCard
-          profileId={nextBirthday.p.id}
-          name={nextBirthday.p.full_name}
-          avatarUrl={avatarUrl(supabase, nextBirthday.p.avatar_path)}
-          birthday={nextBirthday.p.birthday}
-          daysUntil={nextBirthday.days}
-        />
-      )}
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 text-sm">
         <div className="flex items-center gap-2 flex-wrap">

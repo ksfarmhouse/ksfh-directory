@@ -102,27 +102,28 @@ export default async function DirectoryPage({
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
-      <div className="flex items-baseline justify-between mb-2">
-        <h1 className="text-2xl sm:text-3xl font-bold text-fh-green tracking-tight">
-          Brotherhood Directory
-        </h1>
-        <span className="text-sm text-fh-gray-light">
-          {hasFilter
-            ? `${filtered.length} of ${totalBrothers}`
-            : `${totalBrothers} ${totalBrothers === 1 ? "brother" : "brothers"}`}
-        </span>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-2">
+        <div className="flex items-baseline gap-3 flex-wrap">
+          <h1 className="text-2xl sm:text-3xl font-bold text-fh-green tracking-tight">
+            Brotherhood Directory
+          </h1>
+          <span className="text-sm text-fh-gray-light">
+            {hasFilter
+              ? `${filtered.length} of ${totalBrothers}`
+              : `${totalBrothers} ${totalBrothers === 1 ? "brother" : "brothers"}`}
+          </span>
+        </div>
+        {nextBirthday && nextBirthday.p.birthday && (
+          <NextBirthdayCard
+            profileId={nextBirthday.p.id}
+            name={nextBirthday.p.full_name}
+            avatarUrl={avatarUrl(supabase, nextBirthday.p.avatar_path)}
+            birthday={nextBirthday.p.birthday}
+            daysUntil={nextBirthday.days}
+          />
+        )}
       </div>
       <div className="h-1 w-16 bg-fh-gold mb-6" />
-
-      {nextBirthday && nextBirthday.p.birthday && (
-        <NextBirthdayCard
-          profileId={nextBirthday.p.id}
-          name={nextBirthday.p.full_name}
-          avatarUrl={avatarUrl(supabase, nextBirthday.p.avatar_path)}
-          birthday={nextBirthday.p.birthday}
-          daysUntil={nextBirthday.days}
-        />
-      )}
 
       <form className="mb-4" action={HOME}>
         {sort !== "name" && (

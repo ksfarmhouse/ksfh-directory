@@ -24,7 +24,7 @@ export function NextBirthdayCard({
   return (
     <Link
       href={`/profile/${profileId}`}
-      className="flex items-center gap-3 sm:gap-4 bg-fh-green rounded-lg p-4 hover:bg-fh-green/85 hover:shadow-md transition group mb-6"
+      className="flex items-center gap-3 sm:gap-4 bg-fh-green rounded-lg p-3 sm:p-4 hover:bg-fh-green/85 hover:shadow-md transition group"
     >
       <Avatar url={avatarUrl} name={name} size={48} />
       <div className="flex-1 min-w-0">
