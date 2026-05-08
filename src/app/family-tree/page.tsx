@@ -1,5 +1,6 @@
 import { Graph, layout } from "@dagrejs/dagre";
 
+import { TreeScrollContainer } from "@/components/TreeScrollContainer";
 import { createClient } from "@/lib/supabase/server";
 
 const NODE_W = 150;
@@ -161,7 +162,7 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
   }
 
   return (
-    <div className="border border-fh-gray/20 rounded-lg bg-white/5 overflow-auto max-h-[80vh]">
+    <TreeScrollContainer baseWidth={totalWidth} baseHeight={totalHeight}>
       <svg
         width={totalWidth}
         height={totalHeight}
@@ -259,7 +260,7 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
           );
         })}
       </svg>
-    </div>
+    </TreeScrollContainer>
   );
 }
 
