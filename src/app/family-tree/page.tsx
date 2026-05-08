@@ -97,16 +97,13 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
   //    PC-based Y. A brother whose big is two PCs back simply gets a longer
   //    vertical line — the rows themselves stay locked to pledge classes.
   let minX = Infinity;
-  let maxX = -Infinity;
   for (const p of profiles) {
     const node = g.node(p.id) as { x?: number } | undefined;
     if (!node || typeof node.x !== "number") continue;
     if (node.x < minX) minX = node.x;
-    if (node.x > maxX) maxX = node.x;
   }
   if (!Number.isFinite(minX)) {
     minX = 0;
-    maxX = 0;
   }
   const offsetX = PADDING_X + PC_LABEL_W + NODE_W / 2 - minX;
 
@@ -121,7 +118,37 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
     });
   }
 
-  const totalWidth = maxX + offsetX + NODE_W / 2 + PADDING_X;
+  // Resolve horizontal overlaps within each row. Dagre placed brothers at X
+  // values that didn't collide given dagre's own ranks; after we override Y
+  // to a PC-based row, brothers from different dagre ranks can land at the
+  // same Y with overlapping X. Sweep left-to-right and push later nodes right.
+  const MIN_NODE_GAP = 14;
+  const STEP = NODE_W + MIN_NODE_GAP;
+
+  for (const pc of pcSorted) {
+    const rowIds = profiles
+      .filter((p) => p.pledge_class === pc && positions.has(p.id))
+      .map((p) => p.id);
+    rowIds.sort((a, b) => positions.get(a)!.x - positions.get(b)!.x);
+
+    for (let i = 1; i < rowIds.length; i++) {
+      const prev = positions.get(rowIds[i - 1])!;
+      const curr = positions.get(rowIds[i])!;
+      const required = prev.x + STEP;
+      if (curr.x < required) {
+        positions.set(rowIds[i], { x: required, y: curr.y });
+      }
+    }
+  }
+
+  // Recompute width using the post-resolution X values — pushing nodes right
+  // can extend rows past dagre's original maxX.
+  let resolvedMaxX = 0;
+  for (const pos of positions.values()) {
+    const right = pos.x + NODE_W / 2;
+    if (right > resolvedMaxX) resolvedMaxX = right;
+  }
+  const totalWidth = resolvedMaxX + PADDING_X;
   const totalHeight = PADDING_Y + pcSorted.length * ROW_HEIGHT + PADDING_Y;
 
   const profileById = new Map(profiles.map((p) => [p.id, p]));
