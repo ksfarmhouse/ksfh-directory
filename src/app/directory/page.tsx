@@ -45,7 +45,7 @@ export default async function DirectoryPage({
     supabase
       .from("profiles")
       .select(
-        "id, full_name, pledge_class, employment_status, position, university, phone, city, state, avatar_path, birthday",
+        "id, full_name, pledge_class, employment_status, position, university, year_in_school, phone, city, state, avatar_path, birthday",
       )
       .eq("hidden", false),
   ]);
@@ -248,6 +248,7 @@ type FlatProfile = {
   employment_status: string | null;
   position: string | null;
   university: string | null;
+  year_in_school: string | null;
   phone: string | null;
   city: string | null;
   state: string | null;

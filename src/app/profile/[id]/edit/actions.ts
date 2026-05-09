@@ -9,7 +9,15 @@ import type {
   EmploymentStatus,
   ProfileUpdate,
   RelationshipStatus,
+  YearInSchool,
 } from "@/lib/types";
+
+const YEAR_VALUES: YearInSchool[] = [
+  "Freshman",
+  "Sophomore",
+  "Junior",
+  "Senior",
+];
 
 const RELATIONSHIP_VALUES: RelationshipStatus[] = [
   "single",
@@ -72,14 +80,24 @@ export async function updateProfile(formData: FormData) {
 
   const employmentRaw = nullable(formData.get("employment_status"));
   const employmentStatus: EmploymentStatus =
-    employmentRaw === "postgrad" ? "postgrad" : "employed";
+    employmentRaw === "postgrad"
+      ? "postgrad"
+      : employmentRaw === "student"
+        ? "student"
+        : "employed";
 
   const isEmployed = employmentStatus === "employed";
+  const isStudent = employmentStatus === "student";
   const gradYearRaw = nullable(formData.get("grad_year"));
   const gradYearParsed = gradYearRaw ? parseInt(gradYearRaw, 10) : NaN;
   const gradYear =
     !isEmployed && Number.isFinite(gradYearParsed)
       ? gradYearParsed
+      : null;
+  const yearRaw = nullable(formData.get("year_in_school"));
+  const yearInSchool: YearInSchool | null =
+    isStudent && yearRaw && YEAR_VALUES.includes(yearRaw as YearInSchool)
+      ? (yearRaw as YearInSchool)
       : null;
 
   const update: ProfileUpdate = {
@@ -90,6 +108,7 @@ export async function updateProfile(formData: FormData) {
     position: isEmployed ? nullable(formData.get("position")) : null,
     university: !isEmployed ? nullable(formData.get("university")) : null,
     grad_year: gradYear,
+    year_in_school: yearInSchool,
     city: nullable(formData.get("city")),
     state,
     phone: nullable(formData.get("phone")),

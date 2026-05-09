@@ -126,6 +126,7 @@ export default async function EditProfilePage({ params }: { params: Params }) {
               company: profile.company,
               university: profile.university,
               grad_year: profile.grad_year,
+              year_in_school: profile.year_in_school,
             }}
           />
           <Field label="City" name="city" defaultValue={profile.city} />

@@ -165,6 +165,7 @@ export default async function NewProfilePage() {
                 company: null,
                 university: null,
                 grad_year: null,
+                year_in_school: null,
               }}
             />
             <Field label="City" name="city" />

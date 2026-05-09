@@ -145,6 +145,15 @@ export default async function ProfilePage({ params }: { params: Params }) {
                 value={profile.grad_year ? String(profile.grad_year) : null}
               />
             </>
+          ) : profile.employment_status === "student" ? (
+            <>
+              <Field label="Year in school" value={profile.year_in_school} />
+              <Field label="University" value={profile.university} />
+              <Field
+                label="Expected grad year"
+                value={profile.grad_year ? String(profile.grad_year) : null}
+              />
+            </>
           ) : (
             <>
               <Field label="Position" value={profile.position} />

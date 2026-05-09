@@ -5,7 +5,9 @@ export type RelationshipStatus =
   | "married"
   | "unknown";
 
-export type EmploymentStatus = "employed" | "postgrad";
+export type EmploymentStatus = "employed" | "postgrad" | "student";
+
+export type YearInSchool = "Freshman" | "Sophomore" | "Junior" | "Senior";
 
 export type Profile = {
   id: string;
@@ -17,6 +19,7 @@ export type Profile = {
   position: string | null;
   university: string | null;
   grad_year: number | null;
+  year_in_school: YearInSchool | null;
   city: string | null;
   state: string | null;
   home_address: string | null;
@@ -44,6 +47,7 @@ export type ProfileInsert = {
   position?: string | null;
   university?: string | null;
   grad_year?: number | null;
+  year_in_school?: YearInSchool | null;
   city?: string | null;
   state?: string | null;
   home_address?: string | null;

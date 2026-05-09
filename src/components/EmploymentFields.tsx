@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import type { EmploymentStatus } from "@/lib/types";
+import type { EmploymentStatus, YearInSchool } from "@/lib/types";
 
 type Theme = "dark" | "light";
 
@@ -12,6 +12,7 @@ type Defaults = {
   company: string | null;
   university: string | null;
   grad_year: number | null;
+  year_in_school: YearInSchool | null;
 };
 
 type Props = {
@@ -22,10 +23,19 @@ type Props = {
 
 const THIS_YEAR = new Date().getFullYear();
 
+const YEARS: YearInSchool[] = ["Freshman", "Sophomore", "Junior", "Senior"];
+
+function initialStatus(value: EmploymentStatus | null): EmploymentStatus {
+  if (value === "student" || value === "postgrad" || value === "employed") {
+    return value;
+  }
+  return "employed";
+}
+
 export function EmploymentFields({ defaults, theme = "dark" }: Props) {
-  const initial: EmploymentStatus =
-    defaults.employment_status === "postgrad" ? "postgrad" : "employed";
-  const [status, setStatus] = useState<EmploymentStatus>(initial);
+  const [status, setStatus] = useState<EmploymentStatus>(
+    initialStatus(defaults.employment_status),
+  );
 
   const labelClass =
     theme === "dark"
@@ -38,7 +48,7 @@ export function EmploymentFields({ defaults, theme = "dark" }: Props) {
       : "w-full h-10 px-3 rounded-md border border-fh-gray/25 bg-white focus:border-fh-green focus:outline-none focus:ring-2 focus:ring-fh-green/20";
 
   const segmentBaseClass =
-    "flex-1 px-3 py-2 rounded text-sm font-semibold transition";
+    "flex-1 px-2 py-2 rounded text-sm font-semibold transition";
   const segmentInactive =
     theme === "dark"
       ? "text-white/80 hover:bg-white/10"
@@ -56,6 +66,15 @@ export function EmploymentFields({ defaults, theme = "dark" }: Props) {
         <div className={segmentWrapClass}>
           <button
             type="button"
+            onClick={() => setStatus("student")}
+            className={`${segmentBaseClass} ${
+              status === "student" ? segmentActive : segmentInactive
+            }`}
+          >
+            Student
+          </button>
+          <button
+            type="button"
             onClick={() => setStatus("employed")}
             className={`${segmentBaseClass} ${
               status === "employed" ? segmentActive : segmentInactive
@@ -70,13 +89,13 @@ export function EmploymentFields({ defaults, theme = "dark" }: Props) {
               status === "postgrad" ? segmentActive : segmentInactive
             }`}
           >
-            Postgrad School
+            Postgrad
           </button>
         </div>
         <input type="hidden" name="employment_status" value={status} />
       </div>
 
-      {status === "employed" ? (
+      {status === "employed" && (
         <>
           <div>
             <label className={labelClass}>Position</label>
@@ -96,11 +115,13 @@ export function EmploymentFields({ defaults, theme = "dark" }: Props) {
               className={inputClass}
             />
           </div>
-          {/* Clear postgrad fields when submitting as employed */}
           <input type="hidden" name="university" value="" />
           <input type="hidden" name="grad_year" value="" />
+          <input type="hidden" name="year_in_school" value="" />
         </>
-      ) : (
+      )}
+
+      {status === "postgrad" && (
         <>
           <div>
             <label className={labelClass}>University</label>
@@ -127,7 +148,55 @@ export function EmploymentFields({ defaults, theme = "dark" }: Props) {
               className={inputClass}
             />
           </div>
-          {/* Clear employed fields when submitting as postgrad */}
+          <input type="hidden" name="position" value="" />
+          <input type="hidden" name="company" value="" />
+          <input type="hidden" name="year_in_school" value="" />
+        </>
+      )}
+
+      {status === "student" && (
+        <>
+          <div>
+            <label className={labelClass}>Year in school</label>
+            <select
+              name="year_in_school"
+              defaultValue={defaults.year_in_school ?? ""}
+              className={inputClass}
+            >
+              <option value="">—</option>
+              {YEARS.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Expected grad year</label>
+            <input
+              type="number"
+              name="grad_year"
+              min={1900}
+              max={2100}
+              placeholder={String(THIS_YEAR + 1)}
+              defaultValue={
+                defaults.grad_year !== null && defaults.grad_year !== undefined
+                  ? String(defaults.grad_year)
+                  : ""
+              }
+              className={inputClass}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelClass}>University</label>
+            <input
+              type="text"
+              name="university"
+              defaultValue={defaults.university ?? ""}
+              placeholder="Kansas State University"
+              className={inputClass}
+            />
+          </div>
           <input type="hidden" name="position" value="" />
           <input type="hidden" name="company" value="" />
         </>

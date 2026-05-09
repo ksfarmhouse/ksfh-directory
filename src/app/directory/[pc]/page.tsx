@@ -44,7 +44,7 @@ export default async function PledgeClassPage({
   const { data: profilesRaw, error } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, pledge_class, employment_status, position, university, phone, city, state, avatar_path, birthday",
+      "id, full_name, pledge_class, employment_status, position, university, year_in_school, phone, city, state, avatar_path, birthday",
     )
     .eq("hidden", false)
     .eq("pledge_class", pc);

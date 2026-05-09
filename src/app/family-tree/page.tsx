@@ -94,57 +94,63 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
   ).sort();
   const pcToRow = new Map(pcSorted.map((pc, i) => [pc, i]));
 
-  // 3. Compute final positions: dagre's X (shifted into the visible area),
-  //    PC-based Y. A brother whose big is two PCs back simply gets a longer
-  //    vertical line — the rows themselves stay locked to pledge classes.
-  let minX = Infinity;
-  for (const p of profiles) {
-    const node = g.node(p.id) as { x?: number } | undefined;
-    if (!node || typeof node.x !== "number") continue;
-    if (node.x < minX) minX = node.x;
-  }
-  if (!Number.isFinite(minX)) {
-    minX = 0;
-  }
-  const offsetX = PADDING_X + PC_LABEL_W + NODE_W / 2 - minX;
-
-  const positions = new Map<string, { x: number; y: number }>();
-  for (const p of profiles) {
-    const node = g.node(p.id) as { x?: number } | undefined;
-    if (!node || typeof node.x !== "number") continue;
-    const row = pcToRow.get(p.pledge_class) ?? 0;
-    positions.set(p.id, {
-      x: node.x + offsetX,
-      y: PADDING_Y + row * ROW_HEIGHT + NODE_H / 2,
-    });
-  }
-
-  // Resolve horizontal overlaps within each row. Dagre placed brothers at X
-  // values that didn't collide given dagre's own ranks; after we override Y
-  // to a PC-based row, brothers from different dagre ranks can land at the
-  // same Y with overlapping X. Sweep left-to-right and push later nodes right.
+  // 3. Place rows top-to-bottom using a barycenter sort. For every brother
+  //    in the row, the "preferred X" is his big brother's X (already placed
+  //    because we go top-down). Brothers without a big in the tree fall back
+  //    to dagre's X. Sorting each row by preferred X then packing left-to-
+  //    right with a minimum gap keeps each son near his father in column
+  //    order — so a brother whose big is rightmost in the previous row ends
+  //    up rightmost in his row instead of getting an arrow that crosses
+  //    every other edge in between.
   const MIN_NODE_GAP = 14;
   const STEP = NODE_W + MIN_NODE_GAP;
+  const MARGIN_X = PADDING_X + PC_LABEL_W + NODE_W / 2;
+
+  const dagreXOf = (id: string) => {
+    const node = g.node(id) as { x?: number } | undefined;
+    return typeof node?.x === "number" ? node.x : 0;
+  };
+
+  const profilesByPC = new Map<string, ProfileNode[]>();
+  for (const p of profiles) {
+    const arr = profilesByPC.get(p.pledge_class) ?? [];
+    arr.push(p);
+    profilesByPC.set(p.pledge_class, arr);
+  }
+
+  const positions = new Map<string, { x: number; y: number }>();
 
   for (const pc of pcSorted) {
-    const rowIds = profiles
-      .filter((p) => p.pledge_class === pc && positions.has(p.id))
-      .map((p) => p.id);
-    rowIds.sort((a, b) => positions.get(a)!.x - positions.get(b)!.x);
+    const rowIndex = pcToRow.get(pc) ?? 0;
+    const y = PADDING_Y + rowIndex * ROW_HEIGHT + NODE_H / 2;
+    const rowProfiles = profilesByPC.get(pc) ?? [];
 
-    for (let i = 1; i < rowIds.length; i++) {
-      const prev = positions.get(rowIds[i - 1])!;
-      const curr = positions.get(rowIds[i])!;
-      const required = prev.x + STEP;
-      if (curr.x < required) {
-        positions.set(rowIds[i], { x: required, y: curr.y });
-      }
+    type Item = { id: string; prefX: number; dagreX: number };
+    const items: Item[] = rowProfiles.map((p) => {
+      const dagreX = dagreXOf(p.id);
+      const bigPos = p.big_brother_id
+        ? positions.get(p.big_brother_id)
+        : undefined;
+      return {
+        id: p.id,
+        prefX: bigPos ? bigPos.x : dagreX,
+        dagreX,
+      };
+    });
+
+    // Primary: preferred X. Tiebreak: dagre's X — gives stable sibling order
+    // when several brothers share a big (their prefX is identical).
+    items.sort((a, b) => a.prefX - b.prefX || a.dagreX - b.dagreX);
+
+    let lastX = -Infinity;
+    for (const item of items) {
+      const x = Math.max(item.prefX, lastX + STEP, MARGIN_X);
+      positions.set(item.id, { x, y });
+      lastX = x;
     }
   }
 
-  // Recompute width using the post-resolution X values — pushing nodes right
-  // can extend rows past dagre's original maxX.
-  let resolvedMaxX = 0;
+  let resolvedMaxX = MARGIN_X;
   for (const pos of positions.values()) {
     const right = pos.x + NODE_W / 2;
     if (right > resolvedMaxX) resolvedMaxX = right;

@@ -17,6 +17,7 @@ type Profile = {
   employment_status: string | null;
   position: string | null;
   university: string | null;
+  year_in_school: string | null;
   phone: string | null;
   city: string | null;
   state: string | null;
@@ -71,17 +72,24 @@ function CardLines({
   emphasis: CardEmphasis;
 }) {
   if (emphasis === "default") {
-    const isPostgrad = profile.employment_status === "postgrad";
-    const role = isPostgrad ? profile.university : profile.position;
+    const status = profile.employment_status;
+    const isStudent = status === "student";
+    const isPostgrad = status === "postgrad";
+    const role = isStudent
+      ? studentRole(profile.year_in_school, profile.university)
+      : isPostgrad
+        ? profile.university
+        : profile.position;
+    const emptyLabel = isStudent
+      ? "No school listed"
+      : isPostgrad
+        ? "No school listed"
+        : "No job listed";
     const loc = formatLocation(profile.city, profile.state);
     return (
       <>
         <p className="text-sm text-white/90 truncate">
-          {role || (
-            <Empty>
-              {isPostgrad ? "No school listed" : "No job listed"}
-            </Empty>
-          )}
+          {role || <Empty>{emptyLabel}</Empty>}
         </p>
         <p className="text-sm text-white/75 mt-0.5 truncate">
           {loc || <Empty>No location listed</Empty>}
@@ -146,4 +154,9 @@ function CardLines({
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <span className="text-white/40 italic">{children}</span>;
+}
+
+function studentRole(year: string | null, university: string | null): string | null {
+  if (year && university) return `${year} at ${university}`;
+  return year || university;
 }
