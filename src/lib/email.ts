@@ -30,7 +30,7 @@ function renderBroadcastHtml(subject: string, body: string): string {
     )
     .join("");
 
-  const bannerUrl = `${SITE_URL}/FarmHouseBanner-Full.png`;
+  const bannerUrl = `${SITE_URL}/FarmHouseBanner.jpg`;
   const directoryUrl = `${SITE_URL}/directory`;
 
   return `<!doctype html>
