@@ -102,9 +102,10 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
   //    order — so a brother whose big is rightmost in the previous row ends
   //    up rightmost in his row instead of getting an arrow that crosses
   //    every other edge in between.
-  const MIN_NODE_GAP = 14;
+  const MIN_NODE_GAP = 30;
   const STEP = NODE_W + MIN_NODE_GAP;
   const MARGIN_X = PADDING_X + PC_LABEL_W + NODE_W / 2;
+  const RESERVED_PAD = NODE_W / 2 + 8; // clearance to keep around a reserved column
 
   const dagreXOf = (id: string) => {
     const node = g.node(id) as { x?: number } | undefined;
@@ -118,7 +119,20 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
     profilesByPC.set(p.pledge_class, arr);
   }
 
+  // Pre-compute each brother's kids so we know who needs a reserved column
+  // through intermediate rows.
+  const kidsByParent = new Map<string, ProfileNode[]>();
+  for (const p of profiles) {
+    if (!p.big_brother_id) continue;
+    const arr = kidsByParent.get(p.big_brother_id) ?? [];
+    arr.push(p);
+    kidsByParent.set(p.big_brother_id, arr);
+  }
+
   const positions = new Map<string, { x: number; y: number }>();
+  // For each row, X positions that should be kept clear so a long vertical
+  // edge can drop straight through. Built top-down as parents get placed.
+  const reservedByRow = new Map<number, number[]>();
 
   for (const pc of pcSorted) {
     const rowIndex = pcToRow.get(pc) ?? 0;
@@ -142,11 +156,48 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
     // when several brothers share a big (their prefX is identical).
     items.sort((a, b) => a.prefX - b.prefX || a.dagreX - b.dagreX);
 
+    const reservedXs = (reservedByRow.get(rowIndex) ?? [])
+      .slice()
+      .sort((a, b) => a - b);
+
     let lastX = -Infinity;
     for (const item of items) {
-      const x = Math.max(item.prefX, lastX + STEP, MARGIN_X);
+      let x = Math.max(item.prefX, lastX + STEP, MARGIN_X);
+      // If the natural X lands too close to a reserved column, slide right
+      // past it. Loop so successive shifts (cascading) settle.
+      let safety = 0;
+      let bumped = true;
+      while (bumped && safety++ < 32) {
+        bumped = false;
+        for (const rx of reservedXs) {
+          if (Math.abs(x - rx) < RESERVED_PAD) {
+            x = rx + RESERVED_PAD;
+            x = Math.max(x, lastX + STEP, MARGIN_X);
+            bumped = true;
+          }
+        }
+      }
       positions.set(item.id, { x, y });
       lastX = x;
+    }
+
+    // Reserve each just-placed parent's column in the rows that lead to its
+    // furthest-down kid, so future rows clear that lane.
+    for (const p of rowProfiles) {
+      const kids = kidsByParent.get(p.id) ?? [];
+      let maxKidRow = -1;
+      for (const k of kids) {
+        const kRow = pcToRow.get(k.pledge_class) ?? 0;
+        if (kRow > rowIndex + 1 && kRow > maxKidRow) maxKidRow = kRow;
+      }
+      if (maxKidRow > rowIndex + 1) {
+        const px = positions.get(p.id)!.x;
+        for (let r = rowIndex + 1; r < maxKidRow; r++) {
+          const arr = reservedByRow.get(r) ?? [];
+          arr.push(px);
+          reservedByRow.set(r, arr);
+        }
+      }
     }
   }
 
@@ -193,52 +244,6 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
     return false;
   };
 
-  // Find an X clear of any card in every intermediate row between srcRow
-  // and tgtRow, picking the value closest to preferX. Used when both the
-  // source and target columns would collide so the edge needs to detour
-  // through a side channel.
-  const findClearColumn = (
-    srcRow: number,
-    tgtRow: number,
-    preferX: number,
-  ): number | null => {
-    if (tgtRow - srcRow < 2) return null;
-    let allowed: Array<[number, number]> = [[-Infinity, Infinity]];
-    for (let row = srcRow + 1; row < tgtRow; row++) {
-      const cards = [...(cardsByRow.get(row) ?? [])].sort((a, b) => a - b);
-      const rowGaps: Array<[number, number]> = [];
-      let last = -Infinity;
-      for (const cx of cards) {
-        rowGaps.push([last, cx - COLLISION_PAD]);
-        last = cx + COLLISION_PAD;
-      }
-      rowGaps.push([last, Infinity]);
-      const next: Array<[number, number]> = [];
-      for (const [aLo, aHi] of allowed) {
-        for (const [bLo, bHi] of rowGaps) {
-          const lo = Math.max(aLo, bLo);
-          const hi = Math.min(aHi, bHi);
-          if (hi - lo >= 12) next.push([lo, hi]);
-        }
-      }
-      allowed = next;
-      if (allowed.length === 0) return null;
-    }
-    let best: number | null = null;
-    let bestDist = Infinity;
-    for (const [lo, hi] of allowed) {
-      const safeLo = lo === -Infinity ? preferX - 1000 : lo + 6;
-      const safeHi = hi === Infinity ? preferX + 1000 : hi - 6;
-      if (safeLo > safeHi) continue;
-      const candidate = Math.max(safeLo, Math.min(preferX, safeHi));
-      const dist = Math.abs(candidate - preferX);
-      if (dist < bestDist) {
-        best = candidate;
-        bestDist = dist;
-      }
-    }
-    return best;
-  };
 
   // Pre-compute routing data per edge, then assign "lanes" so horizontal
   // jogs from different parents don't pile up at the same Y inside one
@@ -251,8 +256,7 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
     x2: number;
     y2: number;
     sameX: boolean;
-    band: "source" | "target" | "detour";
-    detourX?: number;
+    band: "source" | "target";
     srcRow: number;
     tgtRow: number;
   };
@@ -274,22 +278,9 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
     const multiRow = tgtRow - srcRow > 1;
     const targetBlocked = multiRow && columnCollides(x2, srcRow, tgtRow);
     const sourceBlocked = multiRow && columnCollides(x1, srcRow, tgtRow);
-    let band: "source" | "target" | "detour" = "source";
-    let detourX: number | undefined;
-    if (multiRow) {
-      if (targetBlocked && !sourceBlocked) {
-        band = "target";
-      } else if (targetBlocked && sourceBlocked) {
-        // Both endpoints' columns are blocked by an intermediate brother.
-        // Detour the long vertical through a side channel near the target.
-        const clear = findClearColumn(srcRow, tgtRow, x2);
-        if (clear !== null && Math.abs(clear - x2) > 0.5) {
-          band = "detour";
-          detourX = clear;
-        }
-      }
-    }
-    routes.push({ e, x1, y1, x2, y2, sameX, band, detourX, srcRow, tgtRow });
+    const band: "source" | "target" =
+      multiRow && targetBlocked && !sourceBlocked ? "target" : "source";
+    routes.push({ e, x1, y1, x2, y2, sameX, band, srcRow, tgtRow });
   }
 
   const LANE_STEP = 10;
@@ -297,72 +288,32 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
   const CORNER_R = 8; // corner radius for rounded edge turns
   const BRIDGE_R = 4; // half-width of the "jump-over" bump on edge crossings
 
-  // Lane assignment runs separately per row-gap. Source-band edges live in
-  // the gap below srcRow, target-band in the gap above tgtRow, and detour
-  // edges occupy BOTH (so they participate in both groups).
-  const laneByGapKey = new Map<string, number>();
-  const groups = new Map<
-    string,
-    Array<{ r: EdgeRoute; xLo: number; xHi: number; gapKey: string }>
-  >();
-  const addToGroup = (
-    gapKey: string,
-    r: EdgeRoute,
-    xLo: number,
-    xHi: number,
-  ) => {
-    const arr = groups.get(gapKey) ?? [];
-    arr.push({ r, xLo, xHi, gapKey });
-    groups.set(gapKey, arr);
-  };
+  const laneByEdgeKey = new Map<string, number>();
+  const groups = new Map<string, EdgeRoute[]>();
   for (const r of routes) {
     if (r.sameX) continue;
-    if (r.band === "source") {
-      addToGroup(
-        `s:${r.srcRow}`,
-        r,
-        Math.min(r.x1, r.x2),
-        Math.max(r.x1, r.x2),
-      );
-    } else if (r.band === "target") {
-      addToGroup(
-        `t:${r.tgtRow}`,
-        r,
-        Math.min(r.x1, r.x2),
-        Math.max(r.x1, r.x2),
-      );
-    } else {
-      const dx = r.detourX ?? r.x2;
-      addToGroup(
-        `s:${r.srcRow}`,
-        r,
-        Math.min(r.x1, dx),
-        Math.max(r.x1, dx),
-      );
-      addToGroup(
-        `t:${r.tgtRow}`,
-        r,
-        Math.min(dx, r.x2),
-        Math.max(dx, r.x2),
-      );
-    }
+    const key = r.band === "source" ? `s:${r.srcRow}` : `t:${r.tgtRow}`;
+    const arr = groups.get(key) ?? [];
+    arr.push(r);
+    groups.set(key, arr);
   }
-  for (const [gapKey, arr] of groups) {
-    // Group by parent so siblings share a lane.
-    const byParent = new Map<string, typeof arr>();
-    for (const item of arr) {
-      const a = byParent.get(item.r.e.from) ?? [];
-      a.push(item);
-      byParent.set(item.r.e.from, a);
+  for (const arr of groups.values()) {
+    const byParent = new Map<string, EdgeRoute[]>();
+    for (const r of arr) {
+      const a = byParent.get(r.e.from) ?? [];
+      a.push(r);
+      byParent.set(r.e.from, a);
     }
-    const parents = [...byParent.values()].map((items) => {
+    const parents = [...byParent.values()].map((rs) => {
       let xMin = Infinity;
       let xMax = -Infinity;
-      for (const it of items) {
-        if (it.xLo < xMin) xMin = it.xLo;
-        if (it.xHi > xMax) xMax = it.xHi;
+      for (const r of rs) {
+        if (r.x1 < xMin) xMin = r.x1;
+        if (r.x2 < xMin) xMin = r.x2;
+        if (r.x1 > xMax) xMax = r.x1;
+        if (r.x2 > xMax) xMax = r.x2;
       }
-      return { items, xMin, xMax };
+      return { rs, xMin, xMax };
     });
     parents.sort((a, b) => a.xMin - b.xMin);
     const laneEnds: number[] = [];
@@ -380,158 +331,74 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
       } else {
         laneEnds[lane] = Math.max(laneEnds[lane], p.xMax);
       }
-      for (const it of p.items) {
-        laneByGapKey.set(`${gapKey}|${it.r.e.from}->${it.r.e.to}`, lane);
+      for (const r of p.rs) {
+        laneByEdgeKey.set(`${r.e.from}->${r.e.to}`, lane);
       }
     }
   }
 
-  // With lanes settled, finalize each edge's horizontal-jog Y values. Source
-  // and target bands use one; detour uses two.
-  const ySrcJogByKey = new Map<string, number>();
-  const yTgtJogByKey = new Map<string, number>();
+  // With lanes settled, finalize each edge's horizontal-jog Y.
+  const yJogByKey = new Map<string, number>();
   for (const r of routes) {
     if (r.sameX) continue;
-    const eKey = `${r.e.from}->${r.e.to}`;
-    if (r.band === "source") {
-      const lane = laneByGapKey.get(`s:${r.srcRow}|${eKey}`) ?? 0;
-      ySrcJogByKey.set(
-        eKey,
-        Math.min(r.y1 + SOURCE_JOG + lane * LANE_STEP, r.y2),
-      );
-    } else if (r.band === "target") {
-      const lane = laneByGapKey.get(`t:${r.tgtRow}|${eKey}`) ?? 0;
-      yTgtJogByKey.set(
-        eKey,
-        Math.max(r.y2 - SOURCE_JOG - lane * LANE_STEP, r.y1),
-      );
-    } else {
-      const srcLane = laneByGapKey.get(`s:${r.srcRow}|${eKey}`) ?? 0;
-      const tgtLane = laneByGapKey.get(`t:${r.tgtRow}|${eKey}`) ?? 0;
-      ySrcJogByKey.set(eKey, r.y1 + SOURCE_JOG + srcLane * LANE_STEP);
-      yTgtJogByKey.set(eKey, r.y2 - SOURCE_JOG - tgtLane * LANE_STEP);
-    }
-  }
-
-  // Describe each route's segments so crossing detection has a uniform view.
-  type HSeg = { y: number; xLo: number; xHi: number; tag: "src" | "tgt" };
-  type VSeg = { x: number; yLo: number; yHi: number };
-  const segmentsByKey = new Map<string, { h: HSeg[]; v: VSeg[] }>();
-  for (const r of routes) {
     const key = `${r.e.from}->${r.e.to}`;
-    if (r.sameX) {
-      segmentsByKey.set(key, {
-        h: [],
-        v: [{ x: r.x1, yLo: r.y1, yHi: r.y2 }],
-      });
-      continue;
-    }
-    if (r.band === "source" || r.band === "target") {
-      const yJog =
-        r.band === "source"
-          ? ySrcJogByKey.get(key)!
-          : yTgtJogByKey.get(key)!;
-      segmentsByKey.set(key, {
-        h: [
-          {
-            y: yJog,
-            xLo: Math.min(r.x1, r.x2),
-            xHi: Math.max(r.x1, r.x2),
-            tag: r.band === "source" ? "src" : "tgt",
-          },
-        ],
-        v: [
-          { x: r.x1, yLo: Math.min(r.y1, yJog), yHi: Math.max(r.y1, yJog) },
-          { x: r.x2, yLo: Math.min(yJog, r.y2), yHi: Math.max(yJog, r.y2) },
-        ],
-      });
-    } else {
-      const ySrc = ySrcJogByKey.get(key)!;
-      const yTgt = yTgtJogByKey.get(key)!;
-      const dx = r.detourX!;
-      segmentsByKey.set(key, {
-        h: [
-          {
-            y: ySrc,
-            xLo: Math.min(r.x1, dx),
-            xHi: Math.max(r.x1, dx),
-            tag: "src",
-          },
-          {
-            y: yTgt,
-            xLo: Math.min(dx, r.x2),
-            xHi: Math.max(dx, r.x2),
-            tag: "tgt",
-          },
-        ],
-        v: [
-          { x: r.x1, yLo: Math.min(r.y1, ySrc), yHi: Math.max(r.y1, ySrc) },
-          { x: dx, yLo: Math.min(ySrc, yTgt), yHi: Math.max(ySrc, yTgt) },
-          { x: r.x2, yLo: Math.min(yTgt, r.y2), yHi: Math.max(yTgt, r.y2) },
-        ],
-      });
-    }
+    const lane = laneByEdgeKey.get(key) ?? 0;
+    const yJog =
+      r.band === "target"
+        ? Math.max(r.y2 - SOURCE_JOG - lane * LANE_STEP, r.y1)
+        : Math.min(r.y1 + SOURCE_JOG + lane * LANE_STEP, r.y2);
+    yJogByKey.set(key, yJog);
   }
 
-  // For each route's horizontal segments, find the X positions where they
-  // pass over another route's vertical. Those are the bridge-bump points.
-  // Verticals are never bumped (so each crossing produces exactly one bump).
-  const crossingsByKey = new Map<string, { src: number[]; tgt: number[] }>();
+  // Where one edge's horizontal segment passes over another edge's vertical
+  // segment, record the crossing X so the horizontal can render a small
+  // jump-over bump at that point. Verticals are left untouched.
+  const crossingsByKey = new Map<string, number[]>();
   for (const a of routes) {
+    if (a.sameX) continue;
     const aKey = `${a.e.from}->${a.e.to}`;
-    const aSegs = segmentsByKey.get(aKey);
-    if (!aSegs || aSegs.h.length === 0) continue;
-    const own = new Set(aSegs.v.map((v) => Math.round(v.x)));
-    const buckets: { src: number[]; tgt: number[] } = { src: [], tgt: [] };
-    for (const ah of aSegs.h) {
-      for (const b of routes) {
-        if (a === b) continue;
-        const bKey = `${b.e.from}->${b.e.to}`;
-        const bSegs = segmentsByKey.get(bKey);
-        if (!bSegs) continue;
-        for (const bv of bSegs.v) {
-          if (own.has(Math.round(bv.x))) continue;
-          if (bv.x <= ah.xLo + BRIDGE_R || bv.x >= ah.xHi - BRIDGE_R) continue;
-          if (ah.y <= bv.yLo + BRIDGE_R || ah.y >= bv.yHi - BRIDGE_R) continue;
-          buckets[ah.tag].push(bv.x);
-        }
+    const aYJog = yJogByKey.get(aKey)!;
+    const aLo = Math.min(a.x1, a.x2);
+    const aHi = Math.max(a.x1, a.x2);
+    const crossings: number[] = [];
+    for (const b of routes) {
+      if (a === b) continue;
+      const bKey = `${b.e.from}->${b.e.to}`;
+      const checkVertical = (
+        bx: number,
+        bYTop: number,
+        bYBot: number,
+      ) => {
+        if (Math.abs(bx - a.x1) < 0.5 || Math.abs(bx - a.x2) < 0.5) return;
+        if (bx <= aLo + BRIDGE_R || bx >= aHi - BRIDGE_R) return;
+        if (aYJog <= bYTop + BRIDGE_R || aYJog >= bYBot - BRIDGE_R) return;
+        crossings.push(bx);
+      };
+      if (b.sameX) {
+        checkVertical(b.x1, b.y1, b.y2);
+      } else {
+        const bYJog = yJogByKey.get(bKey)!;
+        checkVertical(
+          b.x1,
+          Math.min(b.y1, bYJog),
+          Math.max(b.y1, bYJog),
+        );
+        checkVertical(
+          b.x2,
+          Math.min(bYJog, b.y2),
+          Math.max(bYJog, b.y2),
+        );
       }
     }
-    if (buckets.src.length > 0 || buckets.tgt.length > 0) {
-      crossingsByKey.set(aKey, {
-        src: [...new Set(buckets.src)].sort((p, q) => p - q),
-        tgt: [...new Set(buckets.tgt)].sort((p, q) => p - q),
-      });
+    if (crossings.length > 0) {
+      crossingsByKey.set(
+        aKey,
+        [...new Set(crossings)].sort((p, q) => p - q),
+      );
     }
   }
 
-  const writeHorizontal = (
-    parts: string[],
-    yJog: number,
-    xStart: number,
-    xEnd: number,
-    crossings: number[],
-  ) => {
-    const goingRight = xEnd > xStart;
-    const valid = crossings
-      .filter((cx) => {
-        const lo = Math.min(xStart, xEnd) + BRIDGE_R;
-        const hi = Math.max(xStart, xEnd) - BRIDGE_R;
-        return cx >= lo && cx <= hi;
-      })
-      .sort((p, q) => (goingRight ? p - q : q - p));
-    for (const cx of valid) {
-      const before = goingRight ? cx - BRIDGE_R : cx + BRIDGE_R;
-      const after = goingRight ? cx + BRIDGE_R : cx - BRIDGE_R;
-      parts.push(`L ${before} ${yJog}`);
-      parts.push(
-        `A ${BRIDGE_R} ${BRIDGE_R} 0 0 ${goingRight ? 1 : 0} ${after} ${yJog}`,
-      );
-    }
-    parts.push(`L ${xEnd} ${yJog}`);
-  };
-
-  const buildSingleJogPath = (
+  const buildPath = (
     x1: number,
     y1: number,
     yJog: number,
@@ -550,55 +417,29 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
     const goingRight = x2 > x1;
     const sweep = goingRight ? 1 : 0;
     const dx = goingRight ? r : -r;
+    const hStart = x1 + dx;
+    const hEnd = x2 - dx;
+    const hLo = Math.min(hStart, hEnd) + BRIDGE_R;
+    const hHi = Math.max(hStart, hEnd) - BRIDGE_R;
+    const valid = crossings
+      .filter((cx) => cx >= hLo && cx <= hHi)
+      .sort((p, q) => (goingRight ? p - q : q - p));
+
     const parts: string[] = [
       `M ${x1} ${y1}`,
       `L ${x1} ${yJog - r}`,
-      `A ${r} ${r} 0 0 ${sweep} ${x1 + dx} ${yJog}`,
+      `A ${r} ${r} 0 0 ${sweep} ${hStart} ${yJog}`,
     ];
-    writeHorizontal(parts, yJog, x1 + dx, x2 - dx, crossings);
-    parts.push(`A ${r} ${r} 0 0 ${sweep} ${x2} ${yJog + r}`);
-    parts.push(`L ${x2} ${y2}`);
-    return parts.join(" ");
-  };
-
-  const buildDetourPath = (
-    x1: number,
-    y1: number,
-    ySrc: number,
-    detourX: number,
-    yTgt: number,
-    x2: number,
-    y2: number,
-    crossingsSrc: number[],
-    crossingsTgt: number[],
-  ): string => {
-    const r = CORNER_R;
-    if (
-      Math.abs(detourX - x1) < 2 * r ||
-      Math.abs(x2 - detourX) < 2 * r ||
-      Math.abs(ySrc - y1) < r ||
-      Math.abs(yTgt - ySrc) < 2 * r ||
-      Math.abs(y2 - yTgt) < r
-    ) {
-      return `M ${x1} ${y1} L ${x1} ${ySrc} L ${detourX} ${ySrc} L ${detourX} ${yTgt} L ${x2} ${yTgt} L ${x2} ${y2}`;
+    for (const cx of valid) {
+      const before = goingRight ? cx - BRIDGE_R : cx + BRIDGE_R;
+      const after = goingRight ? cx + BRIDGE_R : cx - BRIDGE_R;
+      parts.push(`L ${before} ${yJog}`);
+      parts.push(
+        `A ${BRIDGE_R} ${BRIDGE_R} 0 0 ${goingRight ? 1 : 0} ${after} ${yJog}`,
+      );
     }
-    const dir1 = detourX > x1 ? 1 : -1;
-    const dir2 = x2 > detourX ? 1 : -1;
-    const sweep1 = dir1 > 0 ? 1 : 0;
-    const sweep2 = dir2 > 0 ? 1 : 0;
-    const dx1 = dir1 * r;
-    const dx2 = dir2 * r;
-    const parts: string[] = [
-      `M ${x1} ${y1}`,
-      `L ${x1} ${ySrc - r}`,
-      `A ${r} ${r} 0 0 ${sweep1} ${x1 + dx1} ${ySrc}`,
-    ];
-    writeHorizontal(parts, ySrc, x1 + dx1, detourX - dx1, crossingsSrc);
-    parts.push(`A ${r} ${r} 0 0 ${sweep1} ${detourX} ${ySrc + r}`);
-    parts.push(`L ${detourX} ${yTgt - r}`);
-    parts.push(`A ${r} ${r} 0 0 ${sweep2} ${detourX + dx2} ${yTgt}`);
-    writeHorizontal(parts, yTgt, detourX + dx2, x2 - dx2, crossingsTgt);
-    parts.push(`A ${r} ${r} 0 0 ${sweep2} ${x2} ${yTgt + r}`);
+    parts.push(`L ${hEnd} ${yJog}`);
+    parts.push(`A ${r} ${r} 0 0 ${sweep} ${x2} ${yJog + r}`);
     parts.push(`L ${x2} ${y2}`);
     return parts.join(" ");
   };
@@ -665,39 +506,13 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
             row-gap don't pile up at the same Y. */}
         {routes.map((r) => {
           const key = `${r.e.from}->${r.e.to}`;
-          const crs = crossingsByKey.get(key);
           let d: string;
           if (r.sameX) {
             d = `M ${r.x1} ${r.y1} L ${r.x2} ${r.y2}`;
-          } else if (r.band === "detour") {
-            const ySrc = ySrcJogByKey.get(key) ?? r.y1 + SOURCE_JOG;
-            const yTgt = yTgtJogByKey.get(key) ?? r.y2 - SOURCE_JOG;
-            d = buildDetourPath(
-              r.x1,
-              r.y1,
-              ySrc,
-              r.detourX!,
-              yTgt,
-              r.x2,
-              r.y2,
-              crs?.src ?? [],
-              crs?.tgt ?? [],
-            );
           } else {
-            const yJog =
-              r.band === "source"
-                ? ySrcJogByKey.get(key) ?? r.y1 + SOURCE_JOG
-                : yTgtJogByKey.get(key) ?? r.y2 - SOURCE_JOG;
-            const crossings =
-              r.band === "source" ? crs?.src ?? [] : crs?.tgt ?? [];
-            d = buildSingleJogPath(
-              r.x1,
-              r.y1,
-              yJog,
-              r.x2,
-              r.y2,
-              crossings,
-            );
+            const yJog = yJogByKey.get(key) ?? r.y1 + SOURCE_JOG;
+            const crossings = crossingsByKey.get(key) ?? [];
+            d = buildPath(r.x1, r.y1, yJog, r.x2, r.y2, crossings);
           }
           return (
             <path
