@@ -30,7 +30,7 @@ function renderBroadcastHtml(subject: string, body: string): string {
     )
     .join("");
 
-  const bannerUrl = `${SITE_URL}/FarmHouseBanner.jpg`;
+  const bannerUrl = `${SITE_URL}/FarmHouseBanner-Full.png`;
   const directoryUrl = `${SITE_URL}/directory`;
 
   return `<!doctype html>
@@ -46,8 +46,8 @@ function renderBroadcastHtml(subject: string, body: string): string {
     <td align="center" style="padding:32px 12px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e4e4e4;">
         <tr>
-          <td style="padding:0;line-height:0;font-size:0;background:#006938;">
-            <img src="${bannerUrl}" alt="Kansas State FarmHouse" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;">
+          <td align="center" style="background:#006938;padding:28px 24px;line-height:0;font-size:0;">
+            <img src="${bannerUrl}" alt="Kansas State FarmHouse" width="480" style="display:block;width:100%;max-width:480px;height:auto;border:0;outline:none;margin:0 auto;">
           </td>
         </tr>
         <tr>
