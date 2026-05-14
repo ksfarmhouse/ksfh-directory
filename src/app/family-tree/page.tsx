@@ -201,6 +201,47 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
     }
   }
 
+  // Reservation-driven shifts can leave huge empty bands between independent
+  // branches (e.g., the right-lineage chain ends up far right of everything
+  // else). Iteratively detect any horizontal band wider than MAX_VISIBLE_GAP
+  // with no cards in any row, and slide everything right of it leftward to
+  // close the band. Uniform shifts preserve the reservation geometry that
+  // kept long verticals clear.
+  const MAX_VISIBLE_GAP = NODE_W * 1.5;
+  const COMPACT_TARGET_GAP = NODE_W * 0.5;
+  for (let iter = 0; iter < 10; iter++) {
+    const intervals: Array<[number, number]> = [];
+    for (const pos of positions.values()) {
+      intervals.push([pos.x - NODE_W / 2, pos.x + NODE_W / 2]);
+    }
+    if (intervals.length < 2) break;
+    intervals.sort((a, b) => a[0] - b[0]);
+    const merged: Array<[number, number]> = [];
+    for (const itv of intervals) {
+      const top = merged[merged.length - 1];
+      if (!top || top[1] < itv[0]) {
+        merged.push([itv[0], itv[1]]);
+      } else if (itv[1] > top[1]) {
+        top[1] = itv[1];
+      }
+    }
+    let widest: { lo: number; size: number } | null = null;
+    for (let i = 1; i < merged.length; i++) {
+      const lo = merged[i - 1][1];
+      const size = merged[i][0] - lo;
+      if (size > MAX_VISIBLE_GAP && (!widest || size > widest.size)) {
+        widest = { lo, size };
+      }
+    }
+    if (!widest) break;
+    const shift = widest.size - COMPACT_TARGET_GAP;
+    for (const [id, pos] of positions.entries()) {
+      if (pos.x - NODE_W / 2 >= widest.lo) {
+        positions.set(id, { x: pos.x - shift, y: pos.y });
+      }
+    }
+  }
+
   let resolvedMaxX = MARGIN_X;
   for (const pos of positions.values()) {
     const right = pos.x + NODE_W / 2;
