@@ -30,7 +30,7 @@ function renderBroadcastHtml(subject: string, body: string): string {
     )
     .join("");
 
-  const shieldUrl = `${SITE_URL}/FarmHouseBanner.jpg`;
+  const bannerUrl = `${SITE_URL}/FarmHouseBanner.jpg`;
   const directoryUrl = `${SITE_URL}/directory`;
 
   return `<!doctype html>
@@ -46,23 +46,26 @@ function renderBroadcastHtml(subject: string, body: string): string {
     <td align="center" style="padding:32px 12px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e4e4e4;">
         <tr>
-          <td style="background:#006938;padding:28px 24px;text-align:center;">
-            <img src="${shieldUrl}" alt="FarmHouse" width="72" height="72" style="display:inline-block;border:0;border-radius:50%;background:#ffffff;">
-            <div style="margin-top:14px;font-size:11px;letter-spacing:0.2em;color:#ffce00;font-weight:700;text-transform:uppercase;">Kansas State FarmHouse</div>
-            <h1 style="margin:6px 0 0 0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.01em;">${escapeHtml(subject)}</h1>
+          <td style="padding:0;line-height:0;font-size:0;background:#006938;">
+            <img src="${bannerUrl}" alt="Kansas State FarmHouse" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;">
           </td>
         </tr>
         <tr>
-          <td style="height:4px;background:#ffce00;"></td>
+          <td style="height:4px;background:#ffce00;line-height:4px;font-size:0;">&nbsp;</td>
         </tr>
         <tr>
-          <td style="padding:32px 28px;background:#ffffff;">
+          <td style="padding:28px 28px 8px 28px;background:#ffffff;">
+            <h1 style="margin:0 0 16px 0;color:#006938;font-size:22px;font-weight:700;letter-spacing:-0.01em;line-height:1.3;">${escapeHtml(subject)}</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 28px 24px 28px;background:#ffffff;">
             ${paragraphs}
           </td>
         </tr>
         <tr>
           <td style="padding:0 28px 32px 28px;background:#ffffff;">
-            <a href="${directoryUrl}" style="display:inline-block;background:#006938;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 20px;border-radius:6px;">Open the alumni directory</a>
+            <a href="${directoryUrl}" style="display:inline-block;background:#006938;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 20px;border-radius:6px;">Open the Kansas State FarmHouse Directory</a>
           </td>
         </tr>
         <tr>
