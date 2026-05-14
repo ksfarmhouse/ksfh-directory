@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
+import { sendBroadcast, type BroadcastResult } from "@/lib/email";
 import { isValidStateCode } from "@/lib/states";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function nullable(value: FormDataEntryValue | null): string | null {
@@ -70,4 +72,52 @@ export async function createProfile(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/directory");
+}
+
+const TEST_RECIPIENT = "ksfarmhouse@gmail.com";
+
+export async function sendBroadcastEmail(
+  _prev: BroadcastResult | null,
+  formData: FormData,
+): Promise<BroadcastResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+
+  const { data: me } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!me?.is_admin) return { ok: false, error: "Not authorized" };
+
+  const subject = nullable(formData.get("subject"));
+  const body = nullable(formData.get("body"));
+  if (!subject) return { ok: false, error: "Subject is required" };
+  if (!body) return { ok: false, error: "Body is required" };
+
+  const mode = nullable(formData.get("mode"));
+  let recipients: string[];
+  if (mode === "test") {
+    recipients = [TEST_RECIPIENT];
+  } else {
+    // Page through auth.users with the service role to collect every email.
+    const admin = createAdminClient();
+    recipients = [];
+    for (let page = 1; page <= 50; page++) {
+      const { data, error } = await admin.auth.admin.listUsers({
+        page,
+        perPage: 200,
+      });
+      if (error) return { ok: false, error: error.message };
+      for (const u of data.users) {
+        if (u.email) recipients.push(u.email);
+      }
+      if (data.users.length < 200) break;
+    }
+  }
+
+  return sendBroadcast({ subject, body, recipients });
 }

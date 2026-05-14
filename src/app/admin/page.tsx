@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { BroadcastEmailForm } from "@/components/BroadcastEmailForm";
 import { PhoneInput } from "@/components/PhoneInput";
 import { fetchBigBrotherCandidates } from "@/lib/family";
 import { US_STATES } from "@/lib/states";
@@ -100,6 +101,17 @@ export default async function AdminPage() {
             </button>
           </form>
         </div>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-semibold text-fh-green mb-1">
+          Broadcast email
+        </h2>
+        <p className="text-sm text-fh-gray-light mb-4">
+          Sends a branded email to every signed-in alumnus. Each recipient
+          gets their own individual email — addresses are not shared.
+        </p>
+        <BroadcastEmailForm />
       </section>
 
       <section>
