@@ -167,6 +167,32 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
     }
   }
 
+  // Card column index per row, used to detect when a vertical edge segment
+  // would overrun an intermediate brother's card on a multi-row span.
+  const cardsByRow = new Map<number, number[]>();
+  for (const p of profiles) {
+    const pos = positions.get(p.id);
+    if (!pos) continue;
+    const row = pcToRow.get(p.pledge_class) ?? 0;
+    const arr = cardsByRow.get(row) ?? [];
+    arr.push(pos.x);
+    cardsByRow.set(row, arr);
+  }
+  const COLLISION_PAD = NODE_W / 2 + 6;
+  const columnCollides = (
+    x: number,
+    fromRowExclusive: number,
+    toRowExclusive: number,
+  ) => {
+    for (let row = fromRowExclusive + 1; row < toRowExclusive; row++) {
+      const xs = cardsByRow.get(row) ?? [];
+      for (const cx of xs) {
+        if (Math.abs(x - cx) < COLLISION_PAD) return true;
+      }
+    }
+    return false;
+  };
+
   return (
     <TreeScrollContainer baseWidth={totalWidth} baseHeight={totalHeight}>
       <svg
@@ -221,22 +247,48 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
           );
         })}
 
-        {/* Edges. Orthogonal connector with the horizontal jog just below the
-            source — keeps multi-row spans clean and lets sibling edges share
-            a "T" segment near their parent. */}
+        {/* Edges. Orthogonal connector. Single-row spans jog horizontally just
+            below the source so sibling edges share a "T" segment near their
+            parent. Multi-row spans default to a vertical drop in the target
+            column with the jog below source; if an intermediate brother sits
+            in that column, we re-route the long vertical down the source's
+            column and jog horizontally just above the target. */}
         {edges.map((e) => {
           const src = positions.get(e.from);
           const tgt = positions.get(e.to);
           if (!src || !tgt) return null;
+          const fromProfile = profileById.get(e.from);
+          const toProfile = profileById.get(e.to);
+          if (!fromProfile || !toProfile) return null;
+
+          const srcRow = pcToRow.get(fromProfile.pledge_class) ?? 0;
+          const tgtRow = pcToRow.get(toProfile.pledge_class) ?? 0;
+
           const x1 = src.x;
           const y1 = src.y + NODE_H / 2;
           const x2 = tgt.x;
           const y2 = tgt.y - NODE_H / 2;
           const sameX = Math.abs(x1 - x2) < 0.5;
-          const yJog = Math.min(y1 + SOURCE_JOG, y2);
-          const d = sameX
-            ? `M ${x1} ${y1} L ${x2} ${y2}`
-            : `M ${x1} ${y1} L ${x1} ${yJog} L ${x2} ${yJog} L ${x2} ${y2}`;
+
+          let d: string;
+          if (sameX) {
+            d = `M ${x1} ${y1} L ${x2} ${y2}`;
+          } else {
+            const multiRow = tgtRow - srcRow > 1;
+            const targetBlocked =
+              multiRow && columnCollides(x2, srcRow, tgtRow);
+            const sourceBlocked =
+              multiRow && columnCollides(x1, srcRow, tgtRow);
+            // Prefer jog-near-source so siblings line up. Switch to jog-
+            // near-target when the target column is blocked but the source
+            // column is clear.
+            const jogNearTarget =
+              multiRow && targetBlocked && !sourceBlocked;
+            const yJog = jogNearTarget
+              ? y2 - SOURCE_JOG
+              : Math.min(y1 + SOURCE_JOG, y2);
+            d = `M ${x1} ${y1} L ${x1} ${yJog} L ${x2} ${yJog} L ${x2} ${y2}`;
+          }
           return (
             <path
               key={`${e.from}->${e.to}`}
