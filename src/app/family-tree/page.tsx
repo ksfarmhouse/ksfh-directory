@@ -231,8 +231,11 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
     routes.push({ e, x1, y1, x2, y2, sameX, band, srcRow, tgtRow });
   }
 
-  const LANE_STEP = 6;
+  const LANE_STEP = 10;
   const LANE_GAP = 4; // horizontal padding between two parents' jogs in the same lane
+  const CORNER_R = 8; // corner radius for rounded edge turns
+  const BRIDGE_R = 4; // half-width of the "jump-over" bump on edge crossings
+
   const laneByEdgeKey = new Map<string, number>();
   const groups = new Map<string, EdgeRoute[]>();
   for (const r of routes) {
@@ -283,6 +286,115 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
       }
     }
   }
+
+  // With lanes settled, finalize each edge's horizontal-jog Y.
+  const yJogByKey = new Map<string, number>();
+  for (const r of routes) {
+    if (r.sameX) continue;
+    const key = `${r.e.from}->${r.e.to}`;
+    const lane = laneByEdgeKey.get(key) ?? 0;
+    const yJog =
+      r.band === "target"
+        ? Math.max(r.y2 - SOURCE_JOG - lane * LANE_STEP, r.y1)
+        : Math.min(r.y1 + SOURCE_JOG + lane * LANE_STEP, r.y2);
+    yJogByKey.set(key, yJog);
+  }
+
+  // Where one edge's horizontal segment passes over another edge's vertical
+  // segment, record the crossing X so the horizontal can render a small
+  // jump-over bump at that point. Verticals are left untouched.
+  const crossingsByKey = new Map<string, number[]>();
+  for (const a of routes) {
+    if (a.sameX) continue;
+    const aKey = `${a.e.from}->${a.e.to}`;
+    const aYJog = yJogByKey.get(aKey)!;
+    const aLo = Math.min(a.x1, a.x2);
+    const aHi = Math.max(a.x1, a.x2);
+    const crossings: number[] = [];
+    for (const b of routes) {
+      if (a === b) continue;
+      const bKey = `${b.e.from}->${b.e.to}`;
+      const checkVertical = (
+        bx: number,
+        bYTop: number,
+        bYBot: number,
+      ) => {
+        if (Math.abs(bx - a.x1) < 0.5 || Math.abs(bx - a.x2) < 0.5) return;
+        if (bx <= aLo + BRIDGE_R || bx >= aHi - BRIDGE_R) return;
+        if (aYJog <= bYTop + BRIDGE_R || aYJog >= bYBot - BRIDGE_R) return;
+        crossings.push(bx);
+      };
+      if (b.sameX) {
+        checkVertical(b.x1, b.y1, b.y2);
+      } else {
+        const bYJog = yJogByKey.get(bKey)!;
+        checkVertical(
+          b.x1,
+          Math.min(b.y1, bYJog),
+          Math.max(b.y1, bYJog),
+        );
+        checkVertical(
+          b.x2,
+          Math.min(bYJog, b.y2),
+          Math.max(bYJog, b.y2),
+        );
+      }
+    }
+    if (crossings.length > 0) {
+      crossingsByKey.set(
+        aKey,
+        [...new Set(crossings)].sort((p, q) => p - q),
+      );
+    }
+  }
+
+  const buildPath = (
+    x1: number,
+    y1: number,
+    yJog: number,
+    x2: number,
+    y2: number,
+    crossings: number[],
+  ): string => {
+    const r = CORNER_R;
+    if (
+      Math.abs(x2 - x1) < 2 * r ||
+      Math.abs(yJog - y1) < r ||
+      Math.abs(y2 - yJog) < r
+    ) {
+      return `M ${x1} ${y1} L ${x1} ${yJog} L ${x2} ${yJog} L ${x2} ${y2}`;
+    }
+    const goingRight = x2 > x1;
+    const sweep = goingRight ? 1 : 0;
+    const dx = goingRight ? r : -r;
+    const hStart = x1 + dx;
+    const hEnd = x2 - dx;
+    const hLo = Math.min(hStart, hEnd) + BRIDGE_R;
+    const hHi = Math.max(hStart, hEnd) - BRIDGE_R;
+    const valid = crossings
+      .filter((cx) => cx >= hLo && cx <= hHi)
+      .sort((p, q) => (goingRight ? p - q : q - p));
+
+    const parts: string[] = [
+      `M ${x1} ${y1}`,
+      `L ${x1} ${yJog - r}`,
+      `A ${r} ${r} 0 0 ${sweep} ${hStart} ${yJog}`,
+    ];
+    for (const cx of valid) {
+      const before = goingRight ? cx - BRIDGE_R : cx + BRIDGE_R;
+      const after = goingRight ? cx + BRIDGE_R : cx - BRIDGE_R;
+      parts.push(`L ${before} ${yJog}`);
+      // Bump up (negative Y in screen coords). Sweep matches travel direction
+      // so the arc curves above the line whether we're going left or right.
+      parts.push(
+        `A ${BRIDGE_R} ${BRIDGE_R} 0 0 ${goingRight ? 1 : 0} ${after} ${yJog}`,
+      );
+    }
+    parts.push(`L ${hEnd} ${yJog}`);
+    parts.push(`A ${r} ${r} 0 0 ${sweep} ${x2} ${yJog + r}`);
+    parts.push(`L ${x2} ${y2}`);
+    return parts.join(" ");
+  };
 
   return (
     <TreeScrollContainer baseWidth={totalWidth} baseHeight={totalHeight}>
@@ -346,22 +458,13 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
             row-gap don't pile up at the same Y. */}
         {routes.map((r) => {
           const key = `${r.e.from}->${r.e.to}`;
-          const lane = laneByEdgeKey.get(key) ?? 0;
           let d: string;
           if (r.sameX) {
             d = `M ${r.x1} ${r.y1} L ${r.x2} ${r.y2}`;
-          } else if (r.band === "target") {
-            const yJog = Math.max(
-              r.y2 - SOURCE_JOG - lane * LANE_STEP,
-              r.y1,
-            );
-            d = `M ${r.x1} ${r.y1} L ${r.x1} ${yJog} L ${r.x2} ${yJog} L ${r.x2} ${r.y2}`;
           } else {
-            const yJog = Math.min(
-              r.y1 + SOURCE_JOG + lane * LANE_STEP,
-              r.y2,
-            );
-            d = `M ${r.x1} ${r.y1} L ${r.x1} ${yJog} L ${r.x2} ${yJog} L ${r.x2} ${r.y2}`;
+            const yJog = yJogByKey.get(key) ?? r.y1 + SOURCE_JOG;
+            const crossings = crossingsByKey.get(key) ?? [];
+            d = buildPath(r.x1, r.y1, yJog, r.x2, r.y2, crossings);
           }
           return (
             <path
