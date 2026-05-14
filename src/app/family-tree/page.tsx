@@ -193,6 +193,97 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
     return false;
   };
 
+  // Pre-compute routing data per edge, then assign "lanes" so horizontal
+  // jogs from different parents don't pile up at the same Y inside one
+  // row-gap. Siblings sharing a parent stay on the same lane so the T
+  // segment near their big stays intact.
+  type EdgeRoute = {
+    e: { from: string; to: string };
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    sameX: boolean;
+    band: "source" | "target";
+    srcRow: number;
+    tgtRow: number;
+  };
+  const routes: EdgeRoute[] = [];
+  for (const e of edges) {
+    const src = positions.get(e.from);
+    const tgt = positions.get(e.to);
+    if (!src || !tgt) continue;
+    const fromProfile = profileById.get(e.from);
+    const toProfile = profileById.get(e.to);
+    if (!fromProfile || !toProfile) continue;
+    const srcRow = pcToRow.get(fromProfile.pledge_class) ?? 0;
+    const tgtRow = pcToRow.get(toProfile.pledge_class) ?? 0;
+    const x1 = src.x;
+    const y1 = src.y + NODE_H / 2;
+    const x2 = tgt.x;
+    const y2 = tgt.y - NODE_H / 2;
+    const sameX = Math.abs(x1 - x2) < 0.5;
+    const multiRow = tgtRow - srcRow > 1;
+    const targetBlocked = multiRow && columnCollides(x2, srcRow, tgtRow);
+    const sourceBlocked = multiRow && columnCollides(x1, srcRow, tgtRow);
+    const band: "source" | "target" =
+      multiRow && targetBlocked && !sourceBlocked ? "target" : "source";
+    routes.push({ e, x1, y1, x2, y2, sameX, band, srcRow, tgtRow });
+  }
+
+  const LANE_STEP = 6;
+  const LANE_GAP = 4; // horizontal padding between two parents' jogs in the same lane
+  const laneByEdgeKey = new Map<string, number>();
+  const groups = new Map<string, EdgeRoute[]>();
+  for (const r of routes) {
+    if (r.sameX) continue;
+    // Source-band jogs live in the gap below srcRow; target-band jogs live
+    // in the gap above tgtRow. Edges sharing a band+row share a gap.
+    const key = r.band === "source" ? `s:${r.srcRow}` : `t:${r.tgtRow}`;
+    const arr = groups.get(key) ?? [];
+    arr.push(r);
+    groups.set(key, arr);
+  }
+  for (const arr of groups.values()) {
+    const byParent = new Map<string, EdgeRoute[]>();
+    for (const r of arr) {
+      const a = byParent.get(r.e.from) ?? [];
+      a.push(r);
+      byParent.set(r.e.from, a);
+    }
+    const parents = [...byParent.values()].map((rs) => {
+      let xMin = Infinity;
+      let xMax = -Infinity;
+      for (const r of rs) {
+        if (r.x1 < xMin) xMin = r.x1;
+        if (r.x2 < xMin) xMin = r.x2;
+        if (r.x1 > xMax) xMax = r.x1;
+        if (r.x2 > xMax) xMax = r.x2;
+      }
+      return { rs, xMin, xMax };
+    });
+    parents.sort((a, b) => a.xMin - b.xMin);
+    const laneEnds: number[] = [];
+    for (const p of parents) {
+      let lane = -1;
+      for (let i = 0; i < laneEnds.length; i++) {
+        if (laneEnds[i] + LANE_GAP <= p.xMin) {
+          lane = i;
+          break;
+        }
+      }
+      if (lane === -1) {
+        lane = laneEnds.length;
+        laneEnds.push(p.xMax);
+      } else {
+        laneEnds[lane] = Math.max(laneEnds[lane], p.xMax);
+      }
+      for (const r of p.rs) {
+        laneByEdgeKey.set(`${r.e.from}->${r.e.to}`, lane);
+      }
+    }
+  }
+
   return (
     <TreeScrollContainer baseWidth={totalWidth} baseHeight={totalHeight}>
       <svg
@@ -247,51 +338,34 @@ function FamilyTreeChart({ profiles }: { profiles: ProfileNode[] }) {
           );
         })}
 
-        {/* Edges. Orthogonal connector. Single-row spans jog horizontally just
-            below the source so sibling edges share a "T" segment near their
-            parent. Multi-row spans default to a vertical drop in the target
-            column with the jog below source; if an intermediate brother sits
-            in that column, we re-route the long vertical down the source's
-            column and jog horizontally just above the target. */}
-        {edges.map((e) => {
-          const src = positions.get(e.from);
-          const tgt = positions.get(e.to);
-          if (!src || !tgt) return null;
-          const fromProfile = profileById.get(e.from);
-          const toProfile = profileById.get(e.to);
-          if (!fromProfile || !toProfile) return null;
-
-          const srcRow = pcToRow.get(fromProfile.pledge_class) ?? 0;
-          const tgtRow = pcToRow.get(toProfile.pledge_class) ?? 0;
-
-          const x1 = src.x;
-          const y1 = src.y + NODE_H / 2;
-          const x2 = tgt.x;
-          const y2 = tgt.y - NODE_H / 2;
-          const sameX = Math.abs(x1 - x2) < 0.5;
-
+        {/* Edges. Orthogonal connector. Single-row spans jog just below the
+            source so sibling edges share a "T" segment near their parent;
+            multi-row spans whose target column is blocked re-route the long
+            vertical down the source column and jog just above the target.
+            Lane offsets stagger jog Y values so non-sibling edges sharing a
+            row-gap don't pile up at the same Y. */}
+        {routes.map((r) => {
+          const key = `${r.e.from}->${r.e.to}`;
+          const lane = laneByEdgeKey.get(key) ?? 0;
           let d: string;
-          if (sameX) {
-            d = `M ${x1} ${y1} L ${x2} ${y2}`;
+          if (r.sameX) {
+            d = `M ${r.x1} ${r.y1} L ${r.x2} ${r.y2}`;
+          } else if (r.band === "target") {
+            const yJog = Math.max(
+              r.y2 - SOURCE_JOG - lane * LANE_STEP,
+              r.y1,
+            );
+            d = `M ${r.x1} ${r.y1} L ${r.x1} ${yJog} L ${r.x2} ${yJog} L ${r.x2} ${r.y2}`;
           } else {
-            const multiRow = tgtRow - srcRow > 1;
-            const targetBlocked =
-              multiRow && columnCollides(x2, srcRow, tgtRow);
-            const sourceBlocked =
-              multiRow && columnCollides(x1, srcRow, tgtRow);
-            // Prefer jog-near-source so siblings line up. Switch to jog-
-            // near-target when the target column is blocked but the source
-            // column is clear.
-            const jogNearTarget =
-              multiRow && targetBlocked && !sourceBlocked;
-            const yJog = jogNearTarget
-              ? y2 - SOURCE_JOG
-              : Math.min(y1 + SOURCE_JOG, y2);
-            d = `M ${x1} ${y1} L ${x1} ${yJog} L ${x2} ${yJog} L ${x2} ${y2}`;
+            const yJog = Math.min(
+              r.y1 + SOURCE_JOG + lane * LANE_STEP,
+              r.y2,
+            );
+            d = `M ${r.x1} ${r.y1} L ${r.x1} ${yJog} L ${r.x2} ${yJog} L ${r.x2} ${r.y2}`;
           }
           return (
             <path
-              key={`${e.from}->${e.to}`}
+              key={key}
               d={d}
               stroke="#ffce00"
               strokeOpacity="0.6"
